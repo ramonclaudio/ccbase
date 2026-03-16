@@ -12,11 +12,11 @@ code,.mono{font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,Monaco,Consola
 .stats{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
 .stat .n{font-size:24px;font-weight:700;color:var(--cream);font-family:"Fira Code","SF Mono",monospace}
 .stat .l{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
-.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+#widgets{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:10px;margin-bottom:10px}
 .c{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;overflow:hidden}
+.c.wide{grid-column:span 2}
 .c h2{font-size:11px;font-weight:500;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.w-hidden{display:none!important}
 canvas{width:100%!important;display:block;cursor:crosshair}
 .br{display:flex;align-items:center;font-size:11px;margin-bottom:2px;gap:4px;cursor:pointer;padding:1px 2px;border-radius:3px}
 .br:hover{background:#1c2128}
@@ -72,27 +72,32 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .proj-row .dots{display:flex;gap:3px;flex-shrink:0}
 .proj-row .dot{width:8px;height:8px;border-radius:50%}
 .proj-row .info{color:var(--faint);font-size:10px;margin-left:auto}
-.section-toggle{font-size:11px;color:var(--dim);cursor:pointer;padding:6px 0;display:flex;align-items:center;gap:6px;margin:6px 0 2px;user-select:none}
-.section-toggle:hover{color:var(--text)}
-.section-toggle .arrow{display:inline-block;transition:transform .15s;font-size:9px}
-.section-toggle .arrow.open{transform:rotate(90deg)}
-.section-body{overflow:hidden;transition:max-height .2s ease}
-.section-body.collapsed{max-height:0!important;margin:0;opacity:0;pointer-events:none}
 .more-btn{font-size:10px;color:var(--accent);cursor:pointer;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;margin-left:4px}
 .more-btn:hover{background:var(--border)}
-@media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center}
+.settings-overlay.on{display:flex}
+.settings-panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;width:420px;max-height:80vh;overflow-y:auto}
+.settings-panel h3{font-size:14px;margin-bottom:12px;color:var(--cream)}
+.settings-panel label{display:flex;align-items:center;gap:8px;font-size:11px;padding:4px 0;cursor:pointer;color:var(--text)}
+.settings-panel label:hover{color:var(--cream)}
+.settings-panel input[type="checkbox"]{accent-color:var(--accent)}
+.settings-panel .cat{font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px;font-weight:600}
+.settings-panel .actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.settings-panel .actions button{background:var(--border);color:var(--text);border:0;border-radius:4px;padding:6px 14px;cursor:pointer;font-size:11px}
+.settings-panel .actions button:hover{background:var(--accent);color:#fff}
+@media(max-width:900px){#widgets{grid-template-columns:1fr}.c.wide{grid-column:span 1}}
 </style></head><body>
-<h1>Claude Code Analyzer</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History →</a> <button onclick="toggleTheme()" style="margin-left:8px;background:var(--border);border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">☀</button>
+<h1>Claude Code Analyzer</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History &rarr;</a> <button onclick="toggleTheme()" style="margin-left:8px;background:var(--border);border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">&#9788;</button> <button onclick="openSettings()" style="margin-left:4px;background:var(--border);border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--dim)" title="Customize widgets">&#9881;</button>
 <div class="sub" id="sub">loading...</div>
-<div id="clock" style="margin-bottom:16px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:none">
+<div id="clock" data-w="clock" style="margin-bottom:16px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:none">
   <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Total Time Coding with Claude</div>
   <div id="clockval" style="font-family:'Fira Code','SF Mono',SFMono-Regular,Menlo,monospace;font-size:32px;font-weight:700;color:var(--cream);letter-spacing:1px"></div>
   <div id="clocksub" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
 </div>
-<div class="stats" id="stats"></div>
-<div class="stats" id="stats2" style="display:none"></div>
+<div data-w="stats_bar"><div class="stats" id="stats"></div>
+<div class="stats" id="stats2" style="display:none"></div></div>
 
-<div class="filter">
+<div class="filter" data-w="search_bar">
   <input id="sq" placeholder="Search..." onkeydown="if(event.key==='Enter')doSearch()" />
   <input type="date" id="fFrom" onchange="setDateRange()" />
   <input type="date" id="fTo" onchange="setDateRange()" />
@@ -104,93 +109,100 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c" id="sr" style="display:none;margin-bottom:10px"><h2>Search Results</h2><div class="sc" id="sres"></div></div>
 <div class="dd" id="dd"><h2 id="ddTitle"></h2><div id="ddSub" style="font-size:11px;color:var(--dim);margin-bottom:6px"></div><div class="sc" id="ddList"></div></div>
 
-<div class="g2">
-<div class="c"><h2>Sessions per Day</h2><canvas id="c_daily" height="130"></canvas></div>
-<div class="c"><h2>Messages per Day</h2><canvas id="c_msgs" height="130"></canvas></div>
-</div>
-<div class="g3">
-<div class="c"><h2>Tool Calls per Day</h2><canvas id="c_tools" height="120"></canvas></div>
-<div class="c"><h2>Hour of Day</h2><canvas id="c_hours" height="120"></canvas></div>
-<div class="c"><h2>Session Duration</h2><canvas id="c_dur" height="120"></canvas></div>
-</div>
-<div class="g2">
-<div class="c"><h2>Projects by Sessions</h2><div id="p_sess"></div></div>
-<div class="c"><h2>Projects by Tokens</h2><div id="p_cost"></div></div>
-</div>
-<div class="g3">
-<div class="c"><h2>Commit Types</h2><canvas id="c_types" height="150"></canvas></div>
-<div class="c"><h2>Commits per Day</h2><canvas id="c_cpd" height="150"></canvas></div>
-<div class="c"><h2>Branches</h2><div id="p_branches" class="sc"></div></div>
-</div>
-<div class="g3">
-<div class="c"><h2>Billing Blocks (5hr)</h2><div id="p_billing"></div></div>
-<div class="c"><h2>Activity Heatmap</h2><div class="hm" id="heatmap"></div><div class="lg"><span class="d" style="background:var(--card);border:1px solid var(--border)"></span>0<span class="d" style="background:#4a2d1f"></span><span class="d" style="background:#8b4c30"></span><span class="d" style="background:#c2693f"></span><span class="d" style="background:#d97757"></span>more</div></div>
-<div class="c"><h2>Work in Progress</h2><div class="sc" id="wip"></div></div>
-</div>
-<div class="g3">
-<div class="c"><h2>Tasks</h2>
+<div id="widgets">
+<div class="c wide" data-w="sessions_day"><h2>Sessions per Day</h2><canvas id="c_daily" height="130"></canvas></div>
+<div class="c wide" data-w="messages_day"><h2>Messages per Day</h2><canvas id="c_msgs" height="130"></canvas></div>
+<div class="c" data-w="tools_day"><h2>Tool Calls per Day</h2><canvas id="c_tools" height="120"></canvas></div>
+<div class="c" data-w="hour_of_day"><h2>Hour of Day</h2><canvas id="c_hours" height="120"></canvas></div>
+<div class="c" data-w="duration_dist"><h2>Session Duration</h2><canvas id="c_dur" height="120"></canvas></div>
+<div class="c" data-w="proj_sessions"><h2>Projects by Sessions</h2><div id="p_sess"></div></div>
+<div class="c" data-w="proj_tokens"><h2>Projects by Tokens</h2><div id="p_cost"></div></div>
+<div class="c" data-w="commit_types"><h2>Commit Types</h2><canvas id="c_types" height="150"></canvas></div>
+<div class="c" data-w="commits_day"><h2>Commits per Day</h2><canvas id="c_cpd" height="150"></canvas></div>
+<div class="c" data-w="branches"><h2>Branches</h2><div id="p_branches" class="sc"></div></div>
+<div class="c" data-w="billing"><h2>Billing Blocks (5hr)</h2><div id="p_billing"></div></div>
+<div class="c" data-w="heatmap"><h2>Activity Heatmap</h2><div class="hm" id="heatmap"></div><div class="lg"><span class="d" style="background:var(--card);border:1px solid var(--border)"></span>0<span class="d" style="background:#4a2d1f"></span><span class="d" style="background:#8b4c30"></span><span class="d" style="background:#c2693f"></span><span class="d" style="background:#d97757"></span>more</div></div>
+<div class="c" data-w="wip"><h2>Work in Progress</h2><div class="sc" id="wip"></div></div>
+<div class="c" data-w="tasks"><h2>Tasks</h2>
 <div class="tabs"><span class="tab on" data-f="w">In Progress</span><span class="tab" data-f="p">Pending</span><span class="tab" data-f="d">Done</span></div>
 <div class="sc" id="tasks"></div></div>
-<div class="c"><h2>Recent Sessions</h2><div class="sc" id="sess"></div></div>
-<div class="c"><h2>Recent Commits</h2><div class="sc" id="commits"></div></div>
-</div>
-<div class="section-toggle" onclick="toggleSection('details')"><span class="arrow" id="arrow_details">&#9654;</span> Model & Tool Details</div>
-<div id="sec_details" class="section-body collapsed">
-<div class="g2">
-<div class="c"><h2>Tokens by Model</h2><div id="p_models"></div></div>
-<div class="c"><h2>Thinking Depth by Model</h2><div id="p_thinking"></div></div>
-</div>
-<div class="g3">
-<div class="c"><h2>Tool Usage + Error Rates</h2><div class="sc" id="p_toolerr"></div></div>
-<div class="c"><h2>Subagents</h2><div class="sc" id="p_agents"></div></div>
-<div class="c"><h2>Commit Scopes</h2><div class="sc" id="p_scopes"></div></div>
-</div>
-</div>
-
-<div class="section-toggle" onclick="toggleSection('health')"><span class="arrow" id="arrow_health">&#9654;</span> Project Health & Summaries</div>
-<div id="sec_health" class="section-body collapsed">
-<div class="g2">
-<div class="c"><h2>Project Health & Staleness</h2><div class="sc" id="health"></div></div>
-<div class="c"><h2>Tokens by Project</h2><div id="p_tokens"></div></div>
-</div>
-<div class="g2">
-<div class="c"><h2>Message Types</h2><canvas id="c_msgtypes" height="150"></canvas></div>
-<div class="c"><h2>Session Summaries</h2><div class="sc" id="p_summaries"></div></div>
-</div>
+<div class="c" data-w="recent_sessions"><h2>Recent Sessions</h2><div class="sc" id="sess"></div></div>
+<div class="c" data-w="recent_commits"><h2>Recent Commits</h2><div class="sc" id="commits"></div></div>
+<div class="c" data-w="tokens_model"><h2>Tokens by Model</h2><div id="p_models"></div></div>
+<div class="c" data-w="thinking"><h2>Thinking Depth by Model</h2><div id="p_thinking"></div></div>
+<div class="c" data-w="tool_errors"><h2>Tool Usage + Error Rates</h2><div class="sc" id="p_toolerr"></div></div>
+<div class="c" data-w="subagents"><h2>Subagents</h2><div class="sc" id="p_agents"></div></div>
+<div class="c" data-w="commit_scopes"><h2>Commit Scopes</h2><div class="sc" id="p_scopes"></div></div>
+<div class="c" data-w="msg_types"><h2>Message Types</h2><canvas id="c_msgtypes" height="150"></canvas></div>
+<div class="c" data-w="summaries"><h2>Session Summaries</h2><div class="sc" id="p_summaries"></div></div>
+<div class="c" data-w="health"><h2>Project Health & Staleness</h2><div class="sc" id="health"></div></div>
+<div class="c" data-w="tokens_project"><h2>Tokens by Project</h2><div id="p_tokens"></div></div>
+<div class="c" data-w="plan_mode"><h2>Plan Mode Sessions</h2><div class="sc" id="p_plans"></div></div>
+<div class="c" data-w="sidechain"><h2>Sidechain / Agent Activity</h2><div id="p_sidechain"></div></div>
+<div class="c" data-w="paste_rewind"><h2>Paste & Rewind Stats</h2><div id="p_misc"></div></div>
 </div>
 
-<div class="section-toggle" onclick="toggleSection('deep')"><span class="arrow" id="arrow_deep">&#9654;</span> Deep Dive</div>
-<div id="sec_deep" class="section-body collapsed">
-<div class="g3">
-<div class="c"><h2>Plan Mode Sessions</h2><div class="sc" id="p_plans"></div></div>
-<div class="c"><h2>Sidechain / Agent Activity</h2><div id="p_sidechain"></div></div>
-<div class="c"><h2>Paste & Rewind Stats</h2><div id="p_misc"></div></div>
-</div>
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+<div class="settings-panel" id="settingsPanel"></div>
 </div>
 
 <script>
 // Theme
-function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=t;localStorage.setItem("theme",t);document.getElementById("themeBtn").textContent=t==="light"?"☾":"☀"}
-(function(){const t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme:light)").matches?"light":"dark");document.documentElement.dataset.theme=t;document.getElementById("themeBtn").textContent=t==="light"?"☾":"☀"})();
+function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=t;localStorage.setItem("theme",t);document.getElementById("themeBtn").textContent=t==="light"?"\u263e":"\u2606"}
+(function(){const t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme:light)").matches?"light":"dark");document.documentElement.dataset.theme=t;document.getElementById("themeBtn").textContent=t==="light"?"\u263e":"\u2606"})();
 
 const F=s=>fetch(s).then(r=>r.json());
 
-// Section toggle with localStorage persistence
-function toggleSection(id){
-  const el=$("sec_"+id),arrow=$("arrow_"+id);
-  const open=el.classList.toggle("collapsed");
-  arrow.classList.toggle("open",!open);
-  localStorage.setItem("sec_"+id,open?"0":"1");
+// Widget visibility system
+const WIDGETS={
+  "Overview":{clock:"Time Clock",stats_bar:"Stats Bar",search_bar:"Search & Filters"},
+  "Activity":{sessions_day:"Sessions per Day",messages_day:"Messages per Day",tools_day:"Tool Calls per Day",hour_of_day:"Hour of Day",duration_dist:"Session Duration",heatmap:"Activity Heatmap"},
+  "Projects":{proj_sessions:"Projects by Sessions",proj_tokens:"Projects by Tokens",tokens_project:"Tokens by Project",health:"Project Health",wip:"Work in Progress"},
+  "Commits":{commit_types:"Commit Types",commits_day:"Commits per Day",branches:"Branches",commit_scopes:"Commit Scopes"},
+  "Sessions":{tasks:"Tasks",recent_sessions:"Recent Sessions",recent_commits:"Recent Commits",summaries:"Session Summaries"},
+  "Cost & Models":{billing:"Billing Blocks",tokens_model:"Tokens by Model",thinking:"Thinking Depth"},
+  "Deep Dive":{tool_errors:"Tool Errors",subagents:"Subagents",msg_types:"Message Types",plan_mode:"Plan Mode",sidechain:"Sidechain Activity",paste_rewind:"Paste & Rewind"}
+};
+const DEFAULT_HIDDEN=new Set(["tool_errors","subagents","commit_scopes","msg_types","plan_mode","sidechain","paste_rewind","thinking","tokens_project"]);
+
+function getHidden(){
+  const raw=localStorage.getItem("hidden_widgets");
+  if(raw)return new Set(JSON.parse(raw));
+  return new Set(DEFAULT_HIDDEN);
 }
-function restoreSections(){
-  ["details","health","deep"].forEach(id=>{
-    if(localStorage.getItem("sec_"+id)==="1"){
-      $("sec_"+id).classList.remove("collapsed");
-      $("arrow_"+id).classList.add("open");
-    }
+function saveHidden(set){localStorage.setItem("hidden_widgets",JSON.stringify([...set]))}
+function applyVisibility(){
+  const hidden=getHidden();
+  document.querySelectorAll("[data-w]").forEach(el=>{
+    el.classList.toggle("w-hidden",hidden.has(el.dataset.w));
   });
 }
-restoreSections();
+applyVisibility();
+
+function openSettings(){
+  const hidden=getHidden();
+  let html='<h3>Customize Dashboard</h3>';
+  for(const[cat,items]of Object.entries(WIDGETS)){
+    html+='<div class="cat">'+cat+'</div>';
+    for(const[id,label]of Object.entries(items)){
+      html+='<label><input type="checkbox" data-wid="'+id+'"'+(hidden.has(id)?'':' checked')+'/> '+label+'</label>';
+    }
+  }
+  html+='<div class="actions"><button onclick="resetWidgets()">Reset</button><button onclick="showAll()">Show All</button><button onclick="closeSettings()">Done</button></div>';
+  $("settingsPanel").innerHTML=html;
+  $("settingsPanel").querySelectorAll("input[type=checkbox]").forEach(cb=>{
+    cb.onchange=()=>{
+      const hidden=getHidden();
+      if(cb.checked)hidden.delete(cb.dataset.wid);else hidden.add(cb.dataset.wid);
+      saveHidden(hidden);applyVisibility();
+    };
+  });
+  $("settingsOverlay").classList.add("on");
+}
+function closeSettings(){$("settingsOverlay").classList.remove("on")}
+function resetWidgets(){saveHidden(new Set(DEFAULT_HIDDEN));applyVisibility();openSettings()}
+function showAll(){saveHidden(new Set());applyVisibility();openSettings()}
+
 const nm=p=>p?p.split("/").pop():"?";
 const e=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").slice(0,100);
 const dur=m=>{if(!m||m<1)return"<1m";const h=Math.floor(m/60);return h?h+"h "+Math.round(m%60)+"m":Math.round(m)+"m"};
@@ -221,8 +233,8 @@ async function drilldown(){
   if(fProj)title.push(nm(fProj));
   if(fFrom===fTo&&fFrom)title.push(fmtD(fFrom));
   else if(fFrom)title.push(fFrom+(fTo?" to "+fTo:""));
-  $("ddTitle").textContent=title.join(" · ")||"Filtered";
-  $("ddSub").textContent=sess.length+" sessions · "+dur(Math.round(totalMin))+" · "+tok(totalTok)+" tokens";
+  $("ddTitle").textContent=title.join(" \xb7 ")||"Filtered";
+  $("ddSub").textContent=sess.length+" sessions \xb7 "+dur(Math.round(totalMin))+" \xb7 "+tok(totalTok)+" tokens";
   $("ddList").innerHTML=sess.map(s=>{
     const d=s.started_at?new Date(s.started_at):null;
     const dt=d?d.toLocaleString("en",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}):"?";
@@ -233,7 +245,7 @@ async function drilldown(){
 }
 
 function bar(cv,data,lk,vk,color,h){
-  if(!data.length)return;
+  if(!cv||!data.length)return;
   const ctx=cv.getContext("2d"),dpr=devicePixelRatio||1;
   const W=cv.parentElement.clientWidth-28;h=h||cv.height;
   cv.width=W*dpr;cv.height=h*dpr;cv.style.height=h+"px";
@@ -243,7 +255,6 @@ function bar(cv,data,lk,vk,color,h){
   ctx.fillStyle="#484f58";ctx.font="8px system-ui";
   const step=Math.max(1,Math.floor(data.length/8));
   data.forEach((d,i)=>{if(i%step===0){const x=16+i*(bw+1);const l=typeof d[lk]==="number"?d[lk]+"":String(d[lk]).slice(5);ctx.fillText(l,x,h-2)}});
-  // Click handler: detect which bar was clicked
   cv.onclick=function(evt){
     const rect=cv.getBoundingClientRect();
     const x=evt.clientX-rect.left;
@@ -256,7 +267,7 @@ function bar(cv,data,lk,vk,color,h){
 }
 
 function donut(cv,data,key){
-  if(!data.length)return;
+  if(!cv||!data.length)return;
   const ctx=cv.getContext("2d"),dpr=devicePixelRatio||1;
   const W=cv.parentElement.clientWidth-28,H=cv.height;
   cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+"px";ctx.scale(dpr,dpr);
@@ -269,6 +280,7 @@ function donut(cv,data,key){
 }
 
 function bars(el,data,nk,vk,maxW,color,fmt,clickable){
+  if(!el)return;
   const mx=Math.max(...data.map(d=>d[vk]),1);
   el.innerHTML=data.slice(0,12).map(d=>{
     const w=Math.round(d[vk]/mx*maxW);
@@ -295,10 +307,9 @@ async function load(){
     F("/api/tasks"),F("/api/sessions"),F("/api/commits"),F("/api/duration-dist"),F("/api/branches"),
     F("/api/usage-by-project"),F("/api/git-state"),F("/api/lines-by-day"),F("/api/streaks")
   ]);
-  const allProjects=await F("/api/projects");
 
   const tm={};(stats.tasks||[]).forEach(t=>{tm[t.status]=t.n});
-  $("sub").textContent=stats.today+" · "+daily.length+" days · "+tok(stats.totalTokens?.n)+" tokens · "+stats.totalConvLines.n.toLocaleString()+" conversation lines";
+  $("sub").textContent=stats.today+" \xb7 "+daily.length+" days \xb7 "+tok(stats.totalTokens?.n)+" tokens \xb7 "+stats.totalConvLines.n.toLocaleString()+" conversation lines";
 
   // Time clock
   const totalMin=stats.totalMinutes?.n||0;
@@ -306,20 +317,20 @@ async function load(){
     const months=Math.floor(totalMin/43200);
     const weeks=Math.floor((totalMin%43200)/10080);
     const days=Math.floor((totalMin%10080)/1440);
-    const hours=Math.floor((totalMin%1440)/60);
+    const hours2=Math.floor((totalMin%1440)/60);
     const mins=Math.round(totalMin%60);
     const parts=[];
     if(months)parts.push('<span style="color:var(--accent)">'+months+'</span><span style="font-size:14px;color:var(--dim)">mo</span>');
     if(weeks)parts.push('<span style="color:var(--accent)">'+weeks+'</span><span style="font-size:14px;color:var(--dim)">w</span>');
     if(days)parts.push('<span style="color:var(--blue)">'+days+'</span><span style="font-size:14px;color:var(--dim)">d</span>');
-    parts.push('<span style="color:#e6edf3">'+hours+'</span><span style="font-size:14px;color:var(--dim)">h</span>');
+    parts.push('<span style="color:#e6edf3">'+hours2+'</span><span style="font-size:14px;color:var(--dim)">h</span>');
     parts.push('<span style="color:#e6edf3">'+mins+'</span><span style="font-size:14px;color:var(--dim)">m</span>');
     $("clockval").innerHTML=parts.join(' <span style="color:var(--faint);font-size:18px">:</span> ');
     const totalHours=Math.round(totalMin/60);
     const avgPerDay=daily.length?(totalMin/daily.length/60).toFixed(1):"0";
-    const streakText=streaks.current>0?" · "+streaks.current+"d streak":"";
-    const longestText=streaks.longest>0?" · longest: "+streaks.longest+"d":"";
-    $("clocksub").textContent=totalHours.toLocaleString()+" hours total · "+avgPerDay+" hours/day avg · "+(stats.planValue?.n?money(stats.planValue.n)+" API value":"")+streakText+longestText;
+    const streakText=streaks.current>0?" \xb7 "+streaks.current+"d streak":"";
+    const longestText=streaks.longest>0?" \xb7 longest: "+streaks.longest+"d":"";
+    $("clocksub").textContent=totalHours.toLocaleString()+" hours total \xb7 "+avgPerDay+" hours/day avg \xb7 "+(stats.planValue?.n?money(stats.planValue.n)+" API value":"")+streakText+longestText;
     $("clock").style.display="block";
   }
   const sf=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
@@ -348,61 +359,66 @@ async function load(){
   donut($("c_types"),types,"commit_type");
   bar($("c_cpd"),cpd,"d","total",(d)=>d.feats>d.fixes?"#238636":"#da3633");
 
-  // Project bars (clickable)
-  bars($("p_sess"),projs,"project_path","sessions",150,"var(--green)",d=>d.sessions+" · "+dur(d.minutes),true);
+  bars($("p_sess"),projs,"project_path","sessions",150,"var(--green)",d=>d.sessions+" \xb7 "+dur(d.minutes),true);
   bars($("p_cost"),costProj.filter(c=>c.inp>0),"project_path","inp",150,"var(--yellow)",d=>tok(d.inp)+" in / "+tok(d.outp)+" out",true);
   bars($("p_tokens"),costProj.filter(c=>c.inp>0),"project_path","inp",150,"var(--purple)",d=>tok(d.inp+d.outp),true);
 
   // Branches
-  const bmax=Math.max(...branches.map(b=>b.n),1);
-  $("p_branches").innerHTML=branches.map(b=>{
-    const w=Math.round(b.n/bmax*120);
-    return '<div class="br"><span class="nm">'+e(b.git_branch)+'</span><span class="b" style="width:'+w+'px;background:var(--blue)"></span><span class="v">'+b.n+'</span></div>';
-  }).join("");
+  if($("p_branches")){
+    const bmax=Math.max(...branches.map(b=>b.n),1);
+    $("p_branches").innerHTML=branches.map(b=>{
+      const w=Math.round(b.n/bmax*120);
+      return '<div class="br"><span class="nm">'+e(b.git_branch)+'</span><span class="b" style="width:'+w+'px;background:var(--blue)"></span><span class="v">'+b.n+'</span></div>';
+    }).join("");
+  }
 
   // Heatmap
-  const hm=$("heatmap"),hmap={};daily.forEach(d=>{hmap[d.date]=d.session_count});
+  const hm=$("heatmap");
+  if(hm){const hmap={};daily.forEach(d=>{hmap[d.date]=d.session_count});
   const dts=Object.keys(hmap).sort();
   if(dts.length){const mx=Math.max(...Object.values(hmap));const s=new Date(dts[0]+"T00:00:00"),en=new Date(dts[dts.length-1]+"T00:00:00");
   for(let d=new Date(s);d<=en;d.setDate(d.getDate()+1)){const k=d.toISOString().slice(0,10),v=hmap[k]||0;const q=v===0?0:v<mx*.25?1:v<mx*.5?2:v<mx*.75?3:4;
-  const cl=["#1c1c1a","#4a2d1f","#8b4c30","#c2693f","#d97757"][q];const el=document.createElement("div");el.className="d";el.style.background=cl;el.title=k+": "+v+" sessions";el.onclick=()=>setDay(k);hm.appendChild(el)}}
+  const cl=["#1c1c1a","#4a2d1f","#8b4c30","#c2693f","#d97757"][q];const el=document.createElement("div");el.className="d";el.style.background=cl;el.title=k+": "+v+" sessions";el.onclick=()=>setDay(k);hm.appendChild(el)}}}
 
   // WIP
-  $("wip").innerHTML=gitState.length?gitState.map(g=>'<div class="wip-row"><span class="pj">'+e(nm(g.project_path))+'</span><span class="info">'+g.dirty_file_count+' dirty'+(g.stash_count?' · '+g.stash_count+' stash':'')+(g.current_branch?' · '+g.current_branch:'')+'</span></div>').join(""):'<div style="color:var(--dim)">all clean</div>';
+  if($("wip"))$("wip").innerHTML=gitState.length?gitState.map(g=>'<div class="wip-row"><span class="pj">'+e(nm(g.project_path))+'</span><span class="info">'+g.dirty_file_count+' dirty'+(g.stash_count?' \xb7 '+g.stash_count+' stash':'')+(g.current_branch?' \xb7 '+g.current_branch:'')+'</span></div>').join(""):'<div style="color:var(--dim)">all clean</div>';
 
   // Billing Blocks
   const billing=await F("/api/billing-blocks");
+  if($("p_billing")){
   if(billing.length){
     const cur=billing.find(b=>b.is_current);
     const past=billing.filter(b=>!b.is_current).slice(0,6);
-    const bmax=Math.max(...billing.map(b=>b.total_cost||0),0.01);
-    let html="";
+    const bmax2=Math.max(...billing.map(b=>b.total_cost||0),0.01);
+    let bhtml="";
     if(cur){
       const elapsed=Math.round((Date.now()-cur.block_start)/60000);
       const remaining=300-elapsed;
-      html+='<div style="margin-bottom:8px;padding:8px;border:1px solid var(--accent);border-radius:4px;background:rgba(217,119,87,0.08)">';
-      html+='<div style="font-size:10px;color:var(--accent);font-weight:600;margin-bottom:4px">CURRENT BLOCK</div>';
-      html+='<div style="display:flex;gap:12px;align-items:baseline">';
-      html+='<span style="font-size:20px;font-weight:700;font-family:\'Fira Code\',monospace;color:var(--cream)">'+money(cur.total_cost)+'</span>';
-      html+='<span style="font-size:11px;color:var(--dim)">'+cur.session_count+' sessions</span>';
-      html+='<span style="font-size:11px;color:var(--dim)">'+tok((cur.total_input_tokens||0)+(cur.total_output_tokens||0))+'t</span>';
-      html+='</div>';
-      html+='<div style="font-size:10px;color:var(--dim);margin-top:4px">'+elapsed+'m elapsed · '+(remaining>0?remaining+'m remaining':'ended')+' · $'+(cur.burn_rate_cost_per_min*60).toFixed(2)+'/hr burn</div>';
-      html+='</div>';
+      bhtml+='<div style="margin-bottom:8px;padding:8px;border:1px solid var(--accent);border-radius:4px;background:rgba(217,119,87,0.08)">';
+      bhtml+='<div style="font-size:10px;color:var(--accent);font-weight:600;margin-bottom:4px">CURRENT BLOCK</div>';
+      bhtml+='<div style="display:flex;gap:12px;align-items:baseline">';
+      bhtml+='<span style="font-size:20px;font-weight:700;font-family:\'Fira Code\',monospace;color:var(--cream)">'+money(cur.total_cost)+'</span>';
+      bhtml+='<span style="font-size:11px;color:var(--dim)">'+cur.session_count+' sessions</span>';
+      bhtml+='<span style="font-size:11px;color:var(--dim)">'+tok((cur.total_input_tokens||0)+(cur.total_output_tokens||0))+'t</span>';
+      bhtml+='</div>';
+      bhtml+='<div style="font-size:10px;color:var(--dim);margin-top:4px">'+elapsed+'m elapsed \xb7 '+(remaining>0?remaining+'m remaining':'ended')+' \xb7 $'+(cur.burn_rate_cost_per_min*60).toFixed(2)+'/hr burn</div>';
+      bhtml+='</div>';
     }
     if(past.length){
-      html+=past.map(b=>{
+      bhtml+=past.map(b=>{
         const d=new Date(b.block_start);
         const label=d.toLocaleDateString("en",{month:"short",day:"numeric"})+' '+d.toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit",hour12:false});
-        const w=Math.round((b.total_cost||0)/bmax*120);
+        const w=Math.round((b.total_cost||0)/bmax2*120);
         return '<div class="br"><span class="nm" style="width:90px">'+label+'</span><span class="b" style="width:'+w+'px;background:var(--accent)"></span><span class="v">'+money(b.total_cost)+'</span><span class="v" style="color:var(--dim)">'+b.session_count+'s</span></div>';
       }).join("");
     }
-    $("p_billing").innerHTML=html;
-  }else $("p_billing").innerHTML='<div style="color:var(--dim);font-size:11px">no billing data (run ingest with cost data)</div>';
+    $("p_billing").innerHTML=bhtml;
+  }else $("p_billing").innerHTML='<div style="color:var(--dim);font-size:11px">no billing data</div>';
+  }
 
   // Tasks
   function renderTasks(f){
+    if(!$("tasks"))return;
     const fl=tasks.filter(t=>f==="w"?t.status==="in_progress":f==="p"?t.status==="pending":t.status==="completed");
     $("tasks").innerHTML=fl.slice(0,60).map(t=>{
       const b=t.status==="completed"?"d":t.status==="in_progress"?"w":"p";
@@ -417,119 +433,53 @@ async function load(){
   document.querySelectorAll(".tab").forEach(tab=>{tab.onclick=()=>{document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));tab.classList.add("on");renderTasks(tab.dataset.f)}});
 
   // Sessions
-  $("sess").innerHTML=sessions.slice(0,50).map(s=>{
+  if($("sess"))$("sess").innerHTML=sessions.slice(0,50).map(s=>{
     const d=s.started_at?new Date(s.started_at):null;
     const time=d?d.toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit",hour12:false}):"?";
     const toks=(s.input_tokens||s.output_tokens)?'<span style="color:var(--purple)">'+tok((s.input_tokens||0)+(s.output_tokens||0))+'t</span>':"";
-    const lines=(s.lines_added||s.lines_removed)?'<span style="color:var(--green)">+'+( s.lines_added||0)+'</span><span style="color:var(--red)">-'+(s.lines_removed||0)+'</span>':"";
+    const lines=(s.lines_added||s.lines_removed)?'<span style="color:var(--green)">+'+(s.lines_added||0)+'</span><span style="color:var(--red)">-'+(s.lines_removed||0)+'</span>':"";
     return '<div class="sn"><span class="t">'+time+'</span><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.first_prompt)+'</span><span class="m">'+dur(s.duration_minutes)+' '+toks+' '+lines+'</span></div>';
   }).join("");
 
   // Commits
-  $("commits").innerHTML=commits.slice(0,50).map(c=>{
+  if($("commits"))$("commits").innerHTML=commits.slice(0,50).map(c=>{
     const d=c.date?c.date.slice(5,10):"?";
     const tp=c.commit_type?'<span class="tp">'+c.commit_type+'</span>':"";
     return '<div class="cm"><span class="pj">'+e(nm(c.project_path))+'</span>'+tp+'<span class="msg">'+e(c.message)+'</span><span class="dt">'+d+'</span></div>';
   }).join("");
 
-  // Project Health
-  // New widgets: fetch additional data
+  // Additional widgets
   const[tokenModels,toolErrors,agents,commitScopes,msgTypes,summaries]=await Promise.all([
     F("/api/tokens-by-model"),F("/api/tool-errors"),F("/api/agents"),F("/api/commit-scopes"),F("/api/message-types"),F("/api/session-summaries")
   ]);
 
-  // Tokens by Model
-  const mmax=Math.max(...tokenModels.map(m=>(m.inp||0)+(m.outp||0)),1);
-  $("p_models").innerHTML=tokenModels.map(m=>{
-    const total=(m.inp||0)+(m.outp||0);
-    const w=Math.round(total/mmax*160);
-    const short=nm(m.model||"?");
-    return '<div class="br"><span class="nm">'+e(short)+'</span><span class="b" style="width:'+w+'px;background:var(--purple)"></span><span class="v">'+tok(total)+'</span><span class="v" style="color:var(--dim)">'+m.msgs+' msgs</span></div>';
-  }).join("");
+  if($("p_models")){const mmax=Math.max(...tokenModels.map(m=>(m.inp||0)+(m.outp||0)),1);
+  $("p_models").innerHTML=tokenModels.map(m=>{const total=(m.inp||0)+(m.outp||0);const w=Math.round(total/mmax*160);return '<div class="br"><span class="nm">'+e(nm(m.model||"?"))+'</span><span class="b" style="width:'+w+'px;background:var(--purple)"></span><span class="v">'+tok(total)+'</span><span class="v" style="color:var(--dim)">'+m.msgs+' msgs</span></div>';}).join("");}
 
-  // Thinking Depth
-  const tmax=Math.max(...tokenModels.filter(m=>m.avg_think_len).map(m=>m.avg_think_len),1);
-  $("p_thinking").innerHTML=tokenModels.filter(m=>m.thinking_msgs>0).map(m=>{
-    const w=Math.round((m.avg_think_len||0)/tmax*160);
-    return '<div class="br"><span class="nm">'+e(nm(m.model))+'</span><span class="b" style="width:'+w+'px;background:#6e40c9"></span><span class="v">avg '+tok(m.avg_think_len||0)+'c</span><span class="v" style="color:var(--dim)">'+m.thinking_msgs+' blocks</span></div>';
-  }).join("")||'<div style="color:var(--dim);font-size:11px">no thinking data</div>';
+  if($("p_thinking")){const tmax=Math.max(...tokenModels.filter(m=>m.avg_think_len).map(m=>m.avg_think_len),1);
+  $("p_thinking").innerHTML=tokenModels.filter(m=>m.thinking_msgs>0).map(m=>{const w=Math.round((m.avg_think_len||0)/tmax*160);return '<div class="br"><span class="nm">'+e(nm(m.model))+'</span><span class="b" style="width:'+w+'px;background:#6e40c9"></span><span class="v">avg '+tok(m.avg_think_len||0)+'c</span><span class="v" style="color:var(--dim)">'+m.thinking_msgs+' blocks</span></div>';}).join("")||'<div style="color:var(--dim);font-size:11px">no thinking data</div>';}
 
-  // Tool Errors
-  $("p_toolerr").innerHTML=toolErrors.map(t=>{
-    const errStyle=t.errors>0?'color:var(--red)':'color:var(--dim)';
-    return '<div class="br"><span class="nm">'+e(t.tool_name)+'</span><span class="b" style="width:'+Math.round(t.calls/Math.max(...toolErrors.map(x=>x.calls),1)*130)+'px;background:var(--blue)"></span><span class="v">'+t.calls+'</span><span class="v" style="'+errStyle+'">'+t.errors+' err</span></div>';
-  }).join("");
+  if($("p_toolerr"))$("p_toolerr").innerHTML=toolErrors.map(t=>{const errStyle=t.errors>0?'color:var(--red)':'color:var(--dim)';return '<div class="br"><span class="nm">'+e(t.tool_name)+'</span><span class="b" style="width:'+Math.round(t.calls/Math.max(...toolErrors.map(x=>x.calls),1)*130)+'px;background:var(--blue)"></span><span class="v">'+t.calls+'</span><span class="v" style="'+errStyle+'">'+t.errors+' err</span></div>';}).join("");
 
-  // Subagents
-  if(agents.length){
-    const amax=Math.max(...agents.map(a=>a.msgs),1);
-    $("p_agents").innerHTML='<div style="color:var(--dim);font-size:10px;margin-bottom:4px">'+agents.length+' subagents, '+agents.reduce((s,a)=>s+a.msgs,0).toLocaleString()+' messages</div>'+
-    agents.slice(0,12).map(a=>{
-      const w=Math.round(a.msgs/amax*130);
-      return '<div class="br"><span class="nm" style="width:70px">'+e(a.agent_id?.slice(0,8))+'</span><span class="b" style="width:'+w+'px;background:var(--accent)"></span><span class="v">'+a.msgs+'</span><span class="v" style="color:var(--dim)">'+tok(a.tokens)+'t</span></div>';
-    }).join("");
-  }else $("p_agents").innerHTML='<div style="color:var(--dim);font-size:11px">no subagents</div>';
+  if($("p_agents")){if(agents.length){const amax=Math.max(...agents.map(a=>a.msgs),1);$("p_agents").innerHTML='<div style="color:var(--dim);font-size:10px;margin-bottom:4px">'+agents.length+' subagents, '+agents.reduce((s,a)=>s+a.msgs,0).toLocaleString()+' messages</div>'+agents.slice(0,12).map(a=>{const w=Math.round(a.msgs/amax*130);return '<div class="br"><span class="nm" style="width:70px">'+e(a.agent_id?.slice(0,8))+'</span><span class="b" style="width:'+w+'px;background:var(--accent)"></span><span class="v">'+a.msgs+'</span><span class="v" style="color:var(--dim)">'+tok(a.tokens)+'t</span></div>';}).join("");}else $("p_agents").innerHTML='<div style="color:var(--dim);font-size:11px">no subagents</div>';}
 
-  // Commit Scopes
-  const smax=Math.max(...commitScopes.map(s=>s.n),1);
-  $("p_scopes").innerHTML=commitScopes.map(s=>{
-    const w=Math.round(s.n/smax*130);
-    const color=s.commit_type==='feat'?'var(--green)':s.commit_type==='fix'?'var(--red)':'var(--dim)';
-    return '<div class="br"><span class="nm" style="width:130px">'+e(s.commit_type)+'('+e(s.commit_scope)+')</span><span class="b" style="width:'+w+'px;background:'+color+'"></span><span class="v">'+s.n+'</span></div>';
-  }).join("")||'<div style="color:var(--dim);font-size:11px">no scoped commits</div>';
+  if($("p_scopes")){const smax=Math.max(...commitScopes.map(s=>s.n),1);$("p_scopes").innerHTML=commitScopes.map(s=>{const w=Math.round(s.n/smax*130);const color=s.commit_type==='feat'?'var(--green)':s.commit_type==='fix'?'var(--red)':'var(--dim)';return '<div class="br"><span class="nm" style="width:130px">'+e(s.commit_type)+'('+e(s.commit_scope)+')</span><span class="b" style="width:'+w+'px;background:'+color+'"></span><span class="v">'+s.n+'</span></div>';}).join("")||'<div style="color:var(--dim);font-size:11px">no scoped commits</div>';}
 
-  // Message Types donut
   donut($("c_msgtypes"),msgTypes,"raw_type");
 
-  // Session Summaries
-  $("p_summaries").innerHTML=summaries.map(s=>{
-    return '<div class="sn"><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.summary)+'</span><span class="m">'+dur(s.duration_minutes)+' · '+s.message_count+' msgs</span></div>';
-  }).join("")||'<div style="color:var(--dim);font-size:11px">no summaries</div>';
+  if($("p_summaries"))$("p_summaries").innerHTML=summaries.map(s=>'<div class="sn"><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.summary)+'</span><span class="m">'+dur(s.duration_minutes)+' \xb7 '+s.message_count+' msgs</span></div>').join("")||'<div style="color:var(--dim);font-size:11px">no summaries</div>';
 
-  // Plan mode sessions
   const planData=await F("/api/plan-mode");
-  $("p_plans").innerHTML=planData.length?
-    '<div style="color:var(--dim);font-size:10px;margin-bottom:4px">'+planData.length+' sessions used plan mode ('+planData.reduce((s,p)=>s+p.n,0)+' total invocations)</div>'+
-    planData.slice(0,15).map(p=>'<div class="sn"><span class="pj" style="width:70px">'+e(p.session_id.slice(0,8))+'...</span><span class="pr">'+p.n+' plan invocations</span></div>').join(""):
-    '<div style="color:var(--dim);font-size:11px">no plan mode usage detected</div>';
+  if($("p_plans"))$("p_plans").innerHTML=planData.length?'<div style="color:var(--dim);font-size:10px;margin-bottom:4px">'+planData.length+' sessions used plan mode ('+planData.reduce((s,p)=>s+p.n,0)+' total)</div>'+planData.slice(0,15).map(p=>'<div class="sn"><span class="pj" style="width:70px">'+e(p.session_id.slice(0,8))+'...</span><span class="pr">'+p.n+' invocations</span></div>').join(""):'<div style="color:var(--dim);font-size:11px">no plan mode usage</div>';
 
-  // Sidechain stats
   const scData=await F("/api/sidechain-stats");
-  $("p_sidechain").innerHTML='<div style="font-size:11px;margin-bottom:6px"><span style="color:var(--accent);font-weight:700">'+scData.total.n.toLocaleString()+'</span> sidechain messages from <span style="color:var(--blue);font-weight:700">'+scData.agents.n+'</span> subagents</div>'+
-    (scData.byAgent||[]).slice(0,8).map(a=>{
-      const amax2=Math.max(...(scData.byAgent||[]).map(x=>x.msgs),1);
-      return '<div class="br"><span class="nm" style="width:70px">'+e(a.agent_id?.slice(0,8))+'</span><span class="b" style="width:'+Math.round(a.msgs/amax2*100)+'px;background:var(--accent)"></span><span class="v">'+a.msgs+'</span></div>';
-    }).join("");
+  if($("p_sidechain"))$("p_sidechain").innerHTML='<div style="font-size:11px;margin-bottom:6px"><span style="color:var(--accent);font-weight:700">'+scData.total.n.toLocaleString()+'</span> sidechain messages from <span style="color:var(--blue);font-weight:700">'+scData.agents.n+'</span> subagents</div>'+(scData.byAgent||[]).slice(0,8).map(a=>{const amax2=Math.max(...(scData.byAgent||[]).map(x=>x.msgs),1);return '<div class="br"><span class="nm" style="width:70px">'+e(a.agent_id?.slice(0,8))+'</span><span class="b" style="width:'+Math.round(a.msgs/amax2*100)+'px;background:var(--accent)"></span><span class="v">'+a.msgs+'</span></div>';}).join("");
 
-  // Paste & rewind misc stats
-  $("p_misc").innerHTML='<div style="font-size:12px;line-height:2">'+
-    '<div><span style="color:var(--blue);font-weight:700">'+(stats.pasteRate?.n||0)+'%</span> of prompts include pasted content <span style="color:var(--dim)">('+
-    (await F("/api/paste-stats")).with_paste+' of '+(await F("/api/paste-stats")).total+')</span></div>'+
-    '<div><span style="color:var(--purple);font-weight:700">'+(stats.rewinds?.n||0)+'</span> /rewind commands used</div>'+
-    '<div><span style="color:var(--yellow);font-weight:700">'+(stats.planSessions?.n||0)+'</span> plan mode sessions</div>'+
-    '<div><span style="color:var(--accent);font-weight:700">'+streaks.current+'</span> day current streak · <span style="color:var(--accent);font-weight:700">'+streaks.longest+'</span> day longest ('+(streaks.longestStart||"?").slice(5)+' to '+(streaks.longestEnd||"?").slice(5)+')</div>'+
-    '<div><span style="color:var(--dim)">'+streaks.totalDays+' active days tracked</span></div>'+
-    '</div>';
+  if($("p_misc")){const pasteData=await F("/api/paste-stats");
+  $("p_misc").innerHTML='<div style="font-size:12px;line-height:2"><div><span style="color:var(--blue);font-weight:700">'+(stats.pasteRate?.n||0)+'%</span> paste rate <span style="color:var(--dim)">('+pasteData.with_paste+'/'+pasteData.total+')</span></div><div><span style="color:var(--purple);font-weight:700">'+(stats.rewinds?.n||0)+'</span> rewinds</div><div><span style="color:var(--accent);font-weight:700">'+streaks.current+'</span>d streak \xb7 <span style="color:var(--accent);font-weight:700">'+streaks.longest+'</span>d longest</div></div>';}
 
-  // Project Health with staleness
   const staleness=await F("/api/project-staleness");
-  $("health").innerHTML=staleness.map(p=>{
-    const git=p.total_commits>0?'<span class="dot" style="background:var(--green)" title="has commits"></span>':'<span class="dot" style="background:var(--faint)" title="no commits"></span>';
-    const lastDate=p.last_commit_date||p.last_session_date;
-    const daysAgo=lastDate?Math.round((Date.now()-new Date(lastDate).getTime())/86400000):999;
-    const staleColor=daysAgo<7?"var(--green)":daysAgo<30?"var(--yellow)":daysAgo<90?"var(--red)":"var(--faint)";
-    const staleText=daysAgo<1?"today":daysAgo<7?daysAgo+"d ago":daysAgo<30?Math.round(daysAgo/7)+"w ago":daysAgo<365?Math.round(daysAgo/30)+"mo ago":"1y+";
-    const info=[];
-    if(p.total_commits)info.push(p.total_commits+"c");
-    if(p.total_sessions)info.push(p.total_sessions+"s");
-    return '<div class="proj-row" onclick="setProj(\''+p.path.replace(/'/g,"\\'")+'\')">'+
-      '<span class="nm">'+e(p.name)+'</span>'+
-      '<span class="tp">'+p.type+'</span>'+
-      git+
-      '<span style="color:'+staleColor+';font-size:10px;margin-left:auto">'+staleText+'</span>'+
-      '<span class="info">'+info.join(" · ")+'</span>'+
-      '</div>';
-  }).join("");
+  if($("health"))$("health").innerHTML=staleness.map(p=>{const lastDate=p.last_commit_date||p.last_session_date;const daysAgo=lastDate?Math.round((Date.now()-new Date(lastDate).getTime())/86400000):999;const staleColor=daysAgo<7?"var(--green)":daysAgo<30?"var(--yellow)":daysAgo<90?"var(--red)":"var(--faint)";const staleText=daysAgo<1?"today":daysAgo<7?daysAgo+"d ago":daysAgo<30?Math.round(daysAgo/7)+"w ago":daysAgo<365?Math.round(daysAgo/30)+"mo ago":"1y+";const info=[];if(p.total_commits)info.push(p.total_commits+"c");if(p.total_sessions)info.push(p.total_sessions+"s");return '<div class="proj-row" onclick="setProj(\''+p.path.replace(/'/g,"\\'")+'\')"><span class="nm">'+e(p.name)+'</span><span class="tp">'+p.type+'</span><span style="color:'+staleColor+';font-size:10px;margin-left:auto">'+staleText+'</span><span class="info">'+info.join(" \xb7 ")+'</span></div>';}).join("");
 }
 load();
 </script></body></html>
