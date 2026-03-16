@@ -136,8 +136,13 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c"><h2>Session Summaries</h2><div class="sc" id="p_summaries"></div></div>
 </div>
 <div class="g2">
-<div class="c"><h2>Project Health</h2><div class="sc" id="health"></div></div>
+<div class="c"><h2>Project Health & Staleness</h2><div class="sc" id="health"></div></div>
 <div class="c"><h2>Tokens by Project</h2><div id="p_tokens"></div></div>
+</div>
+<div class="g3">
+<div class="c"><h2>Plan Mode Sessions</h2><div class="sc" id="p_plans"></div></div>
+<div class="c"><h2>Sidechain / Agent Activity</h2><div id="p_sidechain"></div></div>
+<div class="c"><h2>Paste & Rewind Stats</h2><div id="p_misc"></div></div>
 </div>
 
 <script>
@@ -241,10 +246,10 @@ async function doSearch(){
 $("sq").addEventListener("keydown",ev=>{if(ev.key==="Enter")doSearch()});
 
 async function load(){
-  const[stats,daily,hours,projs,types,tasks,sessions,commits,durDist,branches,costProj,gitState,cpd]=await Promise.all([
+  const[stats,daily,hours,projs,types,tasks,sessions,commits,durDist,branches,costProj,gitState,cpd,streaks]=await Promise.all([
     F("/api/stats"),F("/api/daily"),F("/api/hours"),F("/api/project-sessions"),F("/api/commit-types"),
     F("/api/tasks"),F("/api/sessions"),F("/api/commits"),F("/api/duration-dist"),F("/api/branches"),
-    F("/api/usage-by-project"),F("/api/git-state"),F("/api/lines-by-day")
+    F("/api/usage-by-project"),F("/api/git-state"),F("/api/lines-by-day"),F("/api/streaks")
   ]);
   const allProjects=await F("/api/projects");
 
@@ -268,7 +273,9 @@ async function load(){
     $("clockval").innerHTML=parts.join(' <span style="color:var(--faint);font-size:18px">:</span> ');
     const totalHours=Math.round(totalMin/60);
     const avgPerDay=daily.length?(totalMin/daily.length/60).toFixed(1):"0";
-    $("clocksub").textContent=totalHours.toLocaleString()+" hours total · "+avgPerDay+" hours/day avg · "+(stats.planValue?.n?money(stats.planValue.n)+" API value":"");
+    const streakText=streaks.current>0?" · "+streaks.current+"d streak":"";
+    const longestText=streaks.longest>0?" · longest: "+streaks.longest+"d":"";
+    $("clocksub").textContent=totalHours.toLocaleString()+" hours total · "+avgPerDay+" hours/day avg · "+(stats.planValue?.n?money(stats.planValue.n)+" API value":"")+streakText+longestText;
     $("clock").style.display="block";
   }
   $("stats").innerHTML=[
@@ -277,6 +284,8 @@ async function load(){
     [stats.commits.n.toLocaleString(),"commits"],[stats.projects.n,"projects"],
     [tm.completed||0,"done"],[tm.in_progress||0,"wip"],[tm.pending||0,"pending"],
     [(stats.subagents?.n||0).toLocaleString(),"agents"],[(stats.errors?.n||0).toLocaleString(),"errors"],
+    [(stats.planSessions?.n||0),"plans"],[(stats.rewinds?.n||0),"rewinds"],
+    [(stats.pasteRate?.n||0)+"%","paste rate"],
     [money(stats.planValue?.n||0),"api value"],[tok(stats.totalTokens?.n||0),"tokens"]
   ].map(([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>').join("");
 
@@ -319,7 +328,8 @@ async function load(){
       const sid=t.suite_id.length>12?t.suite_id.slice(0,8)+"..":t.suite_id;
       const owner=t.owner?'<span style="color:var(--purple);font-size:10px">'+e(t.owner)+'</span>':"";
       const blocked=t.blocked_by&&t.blocked_by!=="[]"?'<span style="color:var(--red);font-size:9px">blocked</span>':"";
-      return '<div class="tk"><span class="bg '+b+'">'+(b==="d"?"done":b==="w"?"wip":"todo")+'</span><span style="color:var(--blue);font-size:10px">'+e(sid)+'</span><span style="flex:1">'+e(t.subject)+'</span>'+owner+blocked+'</div>';
+      const desc=t.description?(' title="'+e(t.description).replace(/"/g,"&quot;")+'"'):'';
+      return '<div class="tk"'+desc+'><span class="bg '+b+'">'+(b==="d"?"done":b==="w"?"wip":"todo")+'</span><span style="color:var(--blue);font-size:10px">'+e(sid)+'</span><span style="flex:1">'+e(t.subject)+'</span>'+owner+blocked+'</div>';
     }).join("")||'<div style="color:var(--dim)">none</div>';
   }
   renderTasks("w");
@@ -395,12 +405,49 @@ async function load(){
     return '<div class="sn"><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.summary)+'</span><span class="m">'+dur(s.duration_minutes)+' · '+s.message_count+' msgs</span></div>';
   }).join("")||'<div style="color:var(--dim);font-size:11px">no summaries</div>';
 
-  $("health").innerHTML=allProjects.map(p=>{
-    const git=p.has_git?'<span class="dot" style="background:var(--green)" title="git"></span>':'<span class="dot" style="background:var(--red)" title="no git"></span>';
-    const md=p.has_claude_md?'<span class="dot" style="background:var(--blue)" title="CLAUDE.md"></span>':'<span class="dot" style="background:var(--faint)" title="no CLAUDE.md"></span>';
-    const dirty=p.dirty_file_count>0?'<span class="dot" style="background:var(--yellow)" title="dirty"></span>':'';
-    const info=[];if(p.total_commits)info.push(p.total_commits+"c");if(p.stash_count)info.push(p.stash_count+"s");
-    return '<div class="proj-row"><span class="nm">'+e(p.name)+'</span><span class="tp">'+p.type+'</span><span class="dots">'+git+md+dirty+'</span><span class="info">'+info.join(" · ")+'</span></div>';
+  // Plan mode sessions
+  const planData=await F("/api/plan-mode");
+  $("p_plans").innerHTML=planData.length?
+    '<div style="color:var(--dim);font-size:10px;margin-bottom:4px">'+planData.length+' sessions used plan mode ('+planData.reduce((s,p)=>s+p.n,0)+' total invocations)</div>'+
+    planData.slice(0,15).map(p=>'<div class="sn"><span class="pj" style="width:70px">'+e(p.session_id.slice(0,8))+'...</span><span class="pr">'+p.n+' plan invocations</span></div>').join(""):
+    '<div style="color:var(--dim);font-size:11px">no plan mode usage detected</div>';
+
+  // Sidechain stats
+  const scData=await F("/api/sidechain-stats");
+  $("p_sidechain").innerHTML='<div style="font-size:11px;margin-bottom:6px"><span style="color:var(--accent);font-weight:700">'+scData.total.n.toLocaleString()+'</span> sidechain messages from <span style="color:var(--blue);font-weight:700">'+scData.agents.n+'</span> subagents</div>'+
+    (scData.byAgent||[]).slice(0,8).map(a=>{
+      const amax2=Math.max(...(scData.byAgent||[]).map(x=>x.msgs),1);
+      return '<div class="br"><span class="nm" style="width:70px">'+e(a.agent_id?.slice(0,8))+'</span><span class="b" style="width:'+Math.round(a.msgs/amax2*100)+'px;background:var(--accent)"></span><span class="v">'+a.msgs+'</span></div>';
+    }).join("");
+
+  // Paste & rewind misc stats
+  $("p_misc").innerHTML='<div style="font-size:12px;line-height:2">'+
+    '<div><span style="color:var(--blue);font-weight:700">'+(stats.pasteRate?.n||0)+'%</span> of prompts include pasted content <span style="color:var(--dim)">('+
+    (await F("/api/paste-stats")).with_paste+' of '+(await F("/api/paste-stats")).total+')</span></div>'+
+    '<div><span style="color:var(--purple);font-weight:700">'+(stats.rewinds?.n||0)+'</span> /rewind commands used</div>'+
+    '<div><span style="color:var(--yellow);font-weight:700">'+(stats.planSessions?.n||0)+'</span> plan mode sessions</div>'+
+    '<div><span style="color:var(--accent);font-weight:700">'+streaks.current+'</span> day current streak · <span style="color:var(--accent);font-weight:700">'+streaks.longest+'</span> day longest ('+(streaks.longestStart||"?").slice(5)+' to '+(streaks.longestEnd||"?").slice(5)+')</div>'+
+    '<div><span style="color:var(--dim)">'+streaks.totalDays+' active days tracked</span></div>'+
+    '</div>';
+
+  // Project Health with staleness
+  const staleness=await F("/api/project-staleness");
+  $("health").innerHTML=staleness.map(p=>{
+    const git=p.total_commits>0?'<span class="dot" style="background:var(--green)" title="has commits"></span>':'<span class="dot" style="background:var(--faint)" title="no commits"></span>';
+    const lastDate=p.last_commit_date||p.last_session_date;
+    const daysAgo=lastDate?Math.round((Date.now()-new Date(lastDate).getTime())/86400000):999;
+    const staleColor=daysAgo<7?"var(--green)":daysAgo<30?"var(--yellow)":daysAgo<90?"var(--red)":"var(--faint)";
+    const staleText=daysAgo<1?"today":daysAgo<7?daysAgo+"d ago":daysAgo<30?Math.round(daysAgo/7)+"w ago":daysAgo<365?Math.round(daysAgo/30)+"mo ago":"1y+";
+    const info=[];
+    if(p.total_commits)info.push(p.total_commits+"c");
+    if(p.total_sessions)info.push(p.total_sessions+"s");
+    return '<div class="proj-row" onclick="setProj(\''+p.path.replace(/'/g,"\\'")+'\')">'+
+      '<span class="nm">'+e(p.name)+'</span>'+
+      '<span class="tp">'+p.type+'</span>'+
+      git+
+      '<span style="color:'+staleColor+';font-size:10px;margin-left:auto">'+staleText+'</span>'+
+      '<span class="info">'+info.join(" · ")+'</span>'+
+      '</div>';
   }).join("");
 }
 load();

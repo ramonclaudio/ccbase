@@ -85,6 +85,43 @@ export function serveCommand(args: string[]): void {
       if (pathname === "/api/session-summaries") return json(q(`SELECT id, summary, first_prompt, project_path, duration_minutes, message_count FROM sessions WHERE summary IS NOT NULL AND summary!='' ORDER BY started_at DESC LIMIT 50`));
       if (pathname === "/api/paste-stats") return json(q(`SELECT COUNT(*) as total, SUM(has_paste) as with_paste, ROUND(SUM(has_paste)*100.0/COUNT(*),1) as pct FROM history_messages`)[0]);
       if (pathname === "/api/project-staleness") return json(q(`SELECT name, type, path, last_commit_date, last_session_date, total_commits, total_sessions FROM projects ORDER BY COALESCE(last_commit_date, last_session_date, '1970') DESC`));
+      if (pathname === "/api/streaks") {
+        const days = q(`SELECT date FROM daily_stats ORDER BY date`) as {date:string}[];
+        let current=0,longest=0,longestStart="",longestEnd="",curStart="";
+        for(let i=0;i<days.length;i++){
+          const d=new Date(days[i].date+"T00:00:00");
+          const prev=i>0?new Date(days[i-1].date+"T00:00:00"):null;
+          if(prev&&(d.getTime()-prev.getTime())===86400000){
+            current++;
+          }else{
+            if(current>longest){longest=current;longestStart=curStart;longestEnd=days[i-1]?.date||curStart}
+            current=1;curStart=days[i].date;
+          }
+        }
+        if(current>longest){longest=current;longestStart=curStart;longestEnd=days[days.length-1]?.date||curStart}
+        // Current streak from most recent date
+        let curStreak=0;
+        const today2=today();
+        for(let i=days.length-1;i>=0;i--){
+          const d=new Date(days[i].date+"T00:00:00");
+          const expected=new Date(today2+"T00:00:00");
+          expected.setDate(expected.getDate()-(days.length-1-i));
+          const diff=Math.abs(new Date(today2+"T00:00:00").getTime()-d.getTime())/86400000;
+          if(i===days.length-1&&diff>1)break;
+          if(i<days.length-1){
+            const prev=new Date(days[i+1].date+"T00:00:00");
+            if((prev.getTime()-d.getTime())!==86400000)break;
+          }
+          curStreak++;
+        }
+        return json({current:curStreak,longest,longestStart,longestEnd,totalDays:days.length});
+      }
+      if (pathname === "/api/plan-mode") return json(q(`SELECT session_id, COUNT(*) as n FROM conversation_messages WHERE tool_name='EnterPlanMode' GROUP BY session_id ORDER BY n DESC`));
+      if (pathname === "/api/sidechain-stats") return json({
+        total: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE is_sidechain=1`)[0],
+        agents: q(`SELECT COUNT(DISTINCT agent_id) as n FROM conversation_messages WHERE agent_id IS NOT NULL`)[0],
+        byAgent: q(`SELECT agent_id, COUNT(*) as msgs, SUM(COALESCE(input_tokens,0)+COALESCE(output_tokens,0)) as tokens FROM conversation_messages WHERE agent_id IS NOT NULL GROUP BY agent_id ORDER BY msgs DESC LIMIT 10`),
+      });
 
       if (pathname === "/api/stats") return json({
         sessions: q(`SELECT COUNT(DISTINCT session_id) as n FROM conversation_messages`)[0],
@@ -110,6 +147,8 @@ export function serveCommand(args: string[]): void {
         subagents: q(`SELECT COUNT(DISTINCT agent_id) as n FROM conversation_messages WHERE agent_id IS NOT NULL`)[0],
         errors: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE is_error=1`)[0],
         pasteRate: q(`SELECT ROUND(SUM(has_paste)*100.0/COUNT(*),1) as n FROM history_messages`)[0],
+        planSessions: q(`SELECT COUNT(DISTINCT session_id) as n FROM conversation_messages WHERE tool_name='EnterPlanMode'`)[0],
+        rewinds: q(`SELECT COUNT(*) as n FROM history_messages WHERE display LIKE '%/rewind%'`)[0],
         today: today(),
       });
 
