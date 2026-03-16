@@ -69,11 +69,11 @@ async function main() {
       break;
     case "serve":
       await ensureDb();
-      serveCommand(args);
+      await serveCommand(args);
       break;
     case "export":
       await ensureDb();
-      exportHtmlCommand(args);
+      await exportHtmlCommand(args);
       break;
     case "ingest":
       await ingestCommand(args);

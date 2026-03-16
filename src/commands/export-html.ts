@@ -1,10 +1,9 @@
 import { getDb } from "../db/connection.ts";
-import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR } from "../utils/paths.ts";
 import { today } from "../utils/dates.ts";
 
-export function exportHtmlCommand(args: string[]): void {
+export async function exportHtmlCommand(args: string[]): Promise<void> {
   const db = getDb();
   const outPath = args[0] || join(DATA_DIR, "dashboard.html");
 
@@ -197,7 +196,7 @@ bar(document.getElementById("c2"),hourly,"hour","n","#1f6feb");
 </body>
 </html>`;
 
-  writeFileSync(outPath, html);
+  await Bun.write(outPath, html);
   console.log(`Dashboard written to ${outPath}`);
   console.log(`Open: file://${outPath}`);
 }
