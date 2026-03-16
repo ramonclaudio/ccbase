@@ -12,17 +12,23 @@ export function getDb(): Database {
   if (_db) return _db;
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
   _db = new Database(DB_PATH);
+  // Tuned for 856MB DB on Apple Silicon M4
   _db.exec("PRAGMA journal_mode = WAL");
   _db.exec("PRAGMA synchronous = NORMAL");
-  _db.exec("PRAGMA cache_size = -64000");
+  _db.exec("PRAGMA cache_size = -128000");       // 128MB cache (was 64MB)
   _db.exec("PRAGMA temp_store = MEMORY");
-  _db.exec("PRAGMA mmap_size = 268435456");
+  _db.exec("PRAGMA mmap_size = 1073741824");      // 1GB mmap - entire DB fits in memory
   _db.exec("PRAGMA foreign_keys = ON");
+  _db.exec("PRAGMA auto_vacuum = INCREMENTAL");
+  _db.exec("PRAGMA optimize");                    // analyze indexes on open
   return _db;
 }
 
 export function closeDb(): void {
-  _db?.close();
+  if (_db) {
+    _db.exec("PRAGMA optimize");  // re-analyze before close
+    _db.close();
+  }
   _db = null;
 }
 

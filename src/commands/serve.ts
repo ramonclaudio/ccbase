@@ -4,7 +4,8 @@ import { today } from "../utils/dates.ts";
 export function serveCommand(args: string[]): void {
   const port = parseInt(args.find(a => /^\d+$/.test(a)) || "3000");
   const db = getDb();
-  const q = (sql: string, ...p: any[]) => db.prepare(sql).all(...p);
+  // db.query() caches prepared statements (vs db.prepare() which doesn't)
+  const q = (sql: string, ...p: any[]) => db.query(sql).all(...p);
 
   Bun.serve({
     port,
@@ -24,7 +25,7 @@ export function serveCommand(args: string[]): void {
         if (dateTo) { sql += ` AND started_at <= ?`; params.push(new Date(dateTo + "T23:59:59").getTime()); }
         sql += ` ORDER BY started_at DESC LIMIT ?`;
         params.push(lim);
-        return json(db.prepare(sql).all(...params));
+        return json(db.query(sql).all(...params));
       }
       if (pathname === "/api/projects") return json(q(`SELECT p.*,g.dirty_file_count,g.stash_count,g.branch_count,g.current_branch FROM projects p LEFT JOIN project_git_state g ON g.project_path=p.path ORDER BY p.total_commits DESC`));
       if (pathname === "/api/tasks") return json(q(`SELECT * FROM tasks ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,suite_id`));
@@ -46,7 +47,7 @@ export function serveCommand(args: string[]): void {
       // Conversation endpoints
       if (pathname === "/api/chat/sessions") {
         const sessions = q(`SELECT session_id, MIN(timestamp) as first_ts, MAX(timestamp) as last_ts, COUNT(*) as msg_count FROM conversation_messages WHERE type IN ('user','assistant') GROUP BY session_id ORDER BY first_ts DESC LIMIT 100`);
-        const firstMsg = db.prepare(`SELECT content FROM conversation_messages WHERE session_id=? AND role='user' AND content IS NOT NULL ORDER BY rowid LIMIT 1`);
+        const firstMsg = db.query(`SELECT content FROM conversation_messages WHERE session_id=? AND role='user' AND content IS NOT NULL ORDER BY rowid LIMIT 1`);
         for (const s of sessions as any[]) s.first_msg = firstMsg.get(s.session_id)?.content?.slice(0, 120) || null;
         return json(sessions);
       }
@@ -163,7 +164,12 @@ export function serveCommand(args: string[]): void {
 function json(d: unknown) { return new Response(JSON.stringify(d), { headers: { "content-type": "application/json", "access-control-allow-origin": "*" } }); }
 function html(b: string) { return new Response(b, { headers: { "content-type": "text/html; charset=utf-8" } }); }
 
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const PAGES_DIR = join(import.meta.dir, "..", "pages");
-function readPage(name: string): string { return readFileSync(join(PAGES_DIR, name), "utf-8"); }
+// Cache HTML at startup - no disk read per request
+const pageCache = new Map<string, string>();
+function readPage(name: string): string {
+  let cached = pageCache.get(name);
+  if (!cached) { cached = Bun.file(join(PAGES_DIR, name)).textSync(); pageCache.set(name, cached); }
+  return cached;
+}
