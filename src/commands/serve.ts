@@ -72,6 +72,7 @@ export function serveCommand(args: string[]): void {
         totalCost: q(`SELECT ROUND(SUM(cost_usd),2) as n FROM sessions`)[0],
         totalTokens: q(`SELECT SUM(COALESCE(input_tokens,0))+SUM(COALESCE(output_tokens,0)) as n FROM conversation_messages`)[0],
         totalLines: q(`SELECT SUM(COALESCE(lines_added,0))+SUM(COALESCE(lines_removed,0)) as n FROM sessions`)[0],
+        totalMinutes: q(`SELECT COALESCE(SUM(duration_minutes),0) as n FROM sessions WHERE duration_minutes>0`)[0],
         toolCalls: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE tool_name IS NOT NULL`)[0],
         thinkingBlocks: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE has_thinking=1`)[0],
         today: today(),
@@ -150,6 +151,11 @@ canvas{width:100%!important;display:block}
 </style></head><body>
 <h1>Claude Code Analyzer</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History →</a>
 <div class="sub" id="sub">loading...</div>
+<div id="clock" style="margin-bottom:16px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:none">
+  <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Total Time Coding with Claude</div>
+  <div id="clockval" style="font-family:'SF Mono',SFMono-Regular,Menlo,monospace;font-size:32px;font-weight:700;color:#e6edf3;letter-spacing:1px"></div>
+  <div id="clocksub" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
+</div>
 <div class="stats" id="stats"></div>
 
 <div class="search"><input id="sq" placeholder="Search history (FTS5)..." /><button onclick="doSearch()">Search</button></div>
@@ -253,7 +259,28 @@ async function load(){
   const allProjects=await F("/api/projects");
 
   const tm={};(stats.tasks||[]).forEach(t=>{tm[t.status]=t.n});
-  $("sub").textContent=stats.today+" · "+daily.length+" days · "+(stats.totalCost?.n?money(stats.totalCost.n):"$0")+" total cost · "+tok(stats.totalTokens?.n)+" tokens · "+stats.totalConvLines.n.toLocaleString()+" conversation lines";
+  $("sub").textContent=stats.today+" · "+daily.length+" days · "+tok(stats.totalTokens?.n)+" tokens · "+stats.totalConvLines.n.toLocaleString()+" conversation lines";
+
+  // Time clock
+  const totalMin=stats.totalMinutes?.n||0;
+  if(totalMin>0){
+    const months=Math.floor(totalMin/43200);
+    const weeks=Math.floor((totalMin%43200)/10080);
+    const days=Math.floor((totalMin%10080)/1440);
+    const hours=Math.floor((totalMin%1440)/60);
+    const mins=Math.round(totalMin%60);
+    const parts=[];
+    if(months)parts.push('<span style="color:var(--accent)">'+months+'</span><span style="font-size:14px;color:var(--dim)">mo</span>');
+    if(weeks)parts.push('<span style="color:var(--accent)">'+weeks+'</span><span style="font-size:14px;color:var(--dim)">w</span>');
+    if(days)parts.push('<span style="color:var(--blue)">'+days+'</span><span style="font-size:14px;color:var(--dim)">d</span>');
+    parts.push('<span style="color:#e6edf3">'+hours+'</span><span style="font-size:14px;color:var(--dim)">h</span>');
+    parts.push('<span style="color:#e6edf3">'+mins+'</span><span style="font-size:14px;color:var(--dim)">m</span>');
+    $("clockval").innerHTML=parts.join(' <span style="color:var(--faint);font-size:18px">:</span> ');
+    const totalHours=Math.round(totalMin/60);
+    const avgPerDay=daily.length?(totalMin/daily.length/60).toFixed(1):"0";
+    $("clocksub").textContent=totalHours.toLocaleString()+" hours total · "+avgPerDay+" hours/day avg · "+(stats.totalCost?.n?money(stats.totalCost.n)+" spent":"");
+    $("clock").style.display="block";
+  }
   $("stats").innerHTML=[
     [stats.sessions.n.toLocaleString(),"sessions"],[stats.messages.n.toLocaleString(),"messages"],
     [(stats.toolCalls?.n||0).toLocaleString(),"tool calls"],[(stats.thinkingBlocks?.n||0).toLocaleString(),"thinking"],
