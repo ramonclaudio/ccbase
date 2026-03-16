@@ -346,9 +346,23 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 .msg .role{font-size:10px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
 .msg.user .role{color:var(--blue)}
 .msg.assistant .role{color:var(--accent)}
-.msg .tool{background:#21262d;padding:3px 8px;border-radius:3px;font-size:11px;color:var(--purple);margin:4px 0;display:inline-block}
+.msg .tool-badge{background:#21262d;padding:2px 7px;border-radius:3px;font-size:10px;color:var(--purple);margin:2px 0;display:inline-block}
 .msg .model{font-size:9px;color:var(--faint);margin-top:4px}
 .msg .tokens{font-size:9px;color:var(--faint)}
+.thinking{background:#1c1c2e;border:1px solid #2d2d44;border-radius:4px;padding:8px 10px;margin:6px 0;font-size:11px;color:#a0a0c0;max-height:200px;overflow-y:auto;white-space:pre-wrap}
+.thinking-toggle{font-size:10px;color:var(--purple);cursor:pointer;user-select:none}
+.tool-block{background:#0d1520;border:1px solid #1c3050;border-radius:4px;margin:6px 0;overflow:hidden}
+.tool-header{padding:4px 10px;font-size:10px;font-weight:600;color:var(--blue);background:#111827;cursor:pointer;user-select:none;display:flex;justify-content:space-between}
+.tool-body{padding:6px 10px;font-size:11px;color:var(--dim);max-height:300px;overflow-y:auto;white-space:pre-wrap;display:none}
+.tool-body.open{display:block}
+.tool-result{background:#0d1a0d;border:1px solid #1a3a1a;border-radius:4px;margin:6px 0;overflow:hidden}
+.tool-result.error{background:#1a0d0d;border-color:#3a1a1a}
+.result-header{padding:4px 10px;font-size:10px;font-weight:600;color:var(--green);background:#0a1a0a;cursor:pointer;user-select:none}
+.tool-result.error .result-header{color:var(--red);background:#1a0a0a}
+.result-body{padding:6px 10px;font-size:11px;color:var(--dim);max-height:300px;overflow-y:auto;white-space:pre-wrap;display:none}
+.result-body.open{display:block}
+.progress-msg{font-size:10px;color:var(--faint);padding:2px 0;border-left:2px solid var(--border);padding-left:8px;margin:2px 0}
+.system-msg{font-size:10px;color:var(--yellow);padding:2px 8px;background:#1a1800;border-radius:3px;margin:2px 0}
 .empty{color:var(--dim);text-align:center;padding:40px;font-size:13px}
 .tool-stats{padding:8px 12px;border-top:1px solid var(--border);font-size:10px;color:var(--dim)}
 .tool-stats span{margin-right:10px}
@@ -359,7 +373,13 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
   <a href="/">← Dashboard</a>
   <div class="stats" id="cstats"></div>
 </div>
-<div class="search-bar"><input id="csearch" placeholder="Search conversations (FTS5)..." /></div>
+<div class="search-bar">
+  <input id="csearch" placeholder="Search conversations (FTS5)..." />
+  <label style="font-size:10px;color:var(--dim);display:flex;align-items:center;gap:3px"><input type="checkbox" id="showThinking" checked> thinking</label>
+  <label style="font-size:10px;color:var(--dim);display:flex;align-items:center;gap:3px"><input type="checkbox" id="showTools" checked> tools</label>
+  <label style="font-size:10px;color:var(--dim);display:flex;align-items:center;gap:3px"><input type="checkbox" id="showProgress"> progress</label>
+  <label style="font-size:10px;color:var(--dim);display:flex;align-items:center;gap:3px"><input type="checkbox" id="showSystem"> system</label>
+</div>
 <div class="main">
   <div class="sidebar" id="sidebar"><div class="empty">loading...</div></div>
   <div class="chat" id="chat"><div class="empty">select a session</div></div>
@@ -393,31 +413,92 @@ function renderSessions(sessions){
   }).join("")||'<div class="empty">no sessions</div>';
 }
 
+let currentMsgs=[];
 async function loadChat(el){
   document.querySelectorAll(".sess-item").forEach(e=>e.classList.remove("active"));
   el.classList.add("active");
   const sid=el.dataset.id;
-  const msgs=await F("/api/chat/"+sid);
+  currentMsgs=await F("/api/chat/"+sid);
+  renderChat();
+}
 
-  $("chat").innerHTML=msgs.filter(m=>m.type==="user"||m.type==="assistant").map(m=>{
+function renderChat(){
+  const showThinking=$("showThinking").checked;
+  const showTools=$("showTools").checked;
+  const showProgress=$("showProgress").checked;
+  const showSystem=$("showSystem").checked;
+  let uid=0;
+
+  $("chat").innerHTML=currentMsgs.map(m=>{
+    const t=m.type;
+    const content=m.content||"";
+
+    // Filter
+    if(t==="progress"&&!showProgress)return"";
+    if((t==="system"||t==="summary")&&!showSystem)return"";
+    if(t==="file-history-snapshot"&&!showSystem)return"";
+
+    // Progress events
+    if(t==="progress"){return'<div class="progress-msg">'+esc(content).slice(0,200)+'</div>'}
+    if(t==="system"||t==="summary"||t==="file-history-snapshot"||t==="queue-operation"||t==="pr-link"||t==="last-prompt"||t==="custom-title"){
+      return'<div class="system-msg"><b>'+t+'</b> '+esc(content).slice(0,300)+'</div>'
+    }
+
+    if(t!=="user"&&t!=="assistant")return"";
+
     const cls=m.role==="user"?"user":"assistant";
     const role=m.role==="user"?"You":"Claude";
-    let content=esc(m.content||"");
-
-    // Style tool references
-    content=content.replace(/\\[tool: (\\w+)\\]/g,'<span class="tool">$1</span>');
-    content=content.replace(/\\[result\\]/g,'<span class="tool" style="color:var(--green)">result</span>');
-    content=content.replace(/\\[result \\(error\\)\\]/g,'<span class="tool" style="color:var(--red)">error</span>');
-
     const model=m.model?'<div class="model">'+nm(m.model)+'</div>':"";
-    const tokens=(m.input_tokens||m.output_tokens)?'<span class="tokens">'+(m.input_tokens?m.input_tokens+" in":"")+(m.output_tokens?" "+m.output_tokens+" out":"")+'</span>':"";
-    const tool=m.tool_name?'<div><span class="tool">'+m.tool_name+'</span></div>':"";
+    const tokens=(m.input_tokens||m.output_tokens)?'<span class="tokens">'+(m.input_tokens?m.input_tokens.toLocaleString()+" in":"")+(m.output_tokens?" "+m.output_tokens.toLocaleString()+" out":"")+'</span>':"";
 
-    return '<div class="msg '+cls+'"><div class="role">'+role+'</div>'+content+tool+model+tokens+'</div>';
-  }).join("")||'<div class="empty">empty session</div>';
+    // Parse structured content
+    let html="";
+    const escaped=esc(content);
+
+    // Split on our XML-like tags
+    const parts=content.split(/(<thinking>|<\\/thinking>|<tool_use[^>]*>|<\\/tool_use>|<tool_result[^>]*>|<\\/tool_result>)/);
+    let inThinking=false,inTool=false,inResult=false,toolMeta="",resultMeta="";
+
+    for(const part of parts){
+      if(part==="<thinking>"){inThinking=true;continue}
+      if(part==="</thinking>"){inThinking=false;continue}
+      if(part.startsWith("<tool_use")){inTool=true;toolMeta=part;continue}
+      if(part==="</tool_use>"){inTool=false;continue}
+      if(part.startsWith("<tool_result")){inResult=true;resultMeta=part;continue}
+      if(part==="</tool_result>"){inResult=false;continue}
+
+      if(inThinking&&showThinking){
+        const id="th"+(uid++);
+        html+='<div class="thinking-toggle" onclick="let b=document.getElementById(\\''+id+"\\');b.style.display=b.style.display==='none'?'block':'none'\">thinking ("+part.length+" chars) ▾</div>";
+        html+='<div class="thinking" id="'+id+'" style="display:none">'+esc(part)+'</div>';
+      }else if(inTool&&showTools){
+        const nameMatch=toolMeta.match(/name="([^"]+)"/);
+        const tn=nameMatch?nameMatch[1]:"tool";
+        const id="tb"+(uid++);
+        html+='<div class="tool-block"><div class="tool-header" onclick="document.getElementById(\\''+id+"\\').classList.toggle('open')\">"+tn+' <span style="font-weight:normal">▾</span></div>';
+        html+='<div class="tool-body" id="'+id+'">'+esc(part.trim())+'</div></div>';
+      }else if(inResult&&showTools){
+        const isErr=resultMeta.includes('error="true"');
+        const id="tr"+(uid++);
+        html+='<div class="tool-result'+(isErr?" error":"")+'"><div class="result-header" onclick="document.getElementById(\\''+id+"\\').classList.toggle('open')\">"+(isErr?"error":"result")+' <span style="font-weight:normal">▾</span></div>';
+        html+='<div class="result-body" id="'+id+'">'+esc(part.trim()).slice(0,10000)+'</div></div>';
+      }else if(!inThinking&&!inTool&&!inResult){
+        const text=part.trim();
+        if(text)html+=esc(text);
+      }
+    }
+
+    if(!html.trim())return"";
+    return '<div class="msg '+cls+'"><div class="role">'+role+'</div>'+html+model+tokens+'</div>';
+  }).filter(Boolean).join("")||'<div class="empty">empty session</div>';
 
   $("chat").scrollTop=0;
 }
+
+// Re-render on filter change
+["showThinking","showTools","showProgress","showSystem"].forEach(id=>{
+  $(id).addEventListener("change",()=>{if(currentMsgs.length)renderChat()});
+});
 
 // Search
 $("csearch").addEventListener("input", async function(){

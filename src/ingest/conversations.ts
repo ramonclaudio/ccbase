@@ -106,17 +106,16 @@ export async function ingestConversations(db: Database): Promise<number> {
                 } else if (block.type === "thinking" && block.thinking) {
                   hasThinking = 1;
                   thinkingLen += block.thinking.length;
-                  // Store thinking content too
-                  parts.push(`[thinking: ${block.thinking.length} chars]`);
+                  parts.push(`<thinking>\n${block.thinking}\n</thinking>`);
                 } else if (block.type === "tool_use") {
                   toolName = block.name || null;
                   toolUseId = block.id || null;
-                  parts.push(`[tool_use: ${block.name}]`);
+                  const inputStr = typeof block.input === "string" ? block.input : JSON.stringify(block.input);
+                  parts.push(`<tool_use name="${block.name}" id="${block.id}">\n${inputStr}\n</tool_use>`);
                 } else if (block.type === "tool_result") {
                   isError = block.is_error ? 1 : 0;
                   const resultContent = typeof block.content === "string" ? block.content : JSON.stringify(block.content);
-                  // Store tool result content (truncate at 5KB to keep DB manageable)
-                  parts.push(resultContent?.slice(0, 5000) || "[empty result]");
+                  parts.push(`<tool_result${block.is_error ? ' error="true"' : ''}>\n${resultContent || ""}\n</tool_result>`);
                 }
               }
               content = parts.join("\n") || null;
