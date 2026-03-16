@@ -1,6 +1,5 @@
 import { Glob } from "bun";
 import type { Database } from "bun:sqlite";
-import { statSync } from "node:fs";
 import { PROJECTS_DIR } from "../utils/paths.ts";
 import type { SessionsIndexFile } from "../utils/parse.ts";
 import { safeParseJson } from "../utils/parse.ts";
@@ -100,13 +99,14 @@ export async function ingestSessionsIndex(db: Database): Promise<number> {
             try {
               const sessionId = file.replace(".jsonl", "");
               const filePath = item.dirPath + "/" + file;
-              const stat = statSync(filePath);
+              const f = Bun.file(filePath);
+              const mtime = f.lastModified;
 
               insertSession.run(
                 sessionId,
                 null,
-                stat.birthtimeMs ? Math.round(stat.birthtimeMs) : Math.round(stat.ctimeMs),
-                Math.round(stat.mtimeMs),
+                mtime,
+                mtime,
                 0,
                 0,
                 null,
