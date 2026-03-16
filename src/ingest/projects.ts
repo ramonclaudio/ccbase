@@ -104,28 +104,25 @@ export async function ingestProjects(db: Database): Promise<number> {
             new Date().toISOString(),
           );
 
-          // Commits - only mine, skip forks/refs (other people's code)
-          const skipCommits = type === "fork" || type === "ref";
-          if (!skipCommits) {
-            const MY_NAMES = ["Ray", "the author", "the author", "ramonclaudio"];
-            const allCommits = gitRecentCommits(path);
-            const myCommits = allCommits.filter(c => MY_NAMES.includes(c.author));
-            totalCommits = myCommits.length;
-            if (myCommits.length > 0) {
-              lastCommitDate = myCommits[0]!.date.slice(0, 10);
-            }
+          // Commits - only mine across all repos (including forks/refs)
+          const MY_NAMES = ["Ray", "the author", "the author", "ramonclaudio"];
+          const allCommits = gitRecentCommits(path);
+          const myCommits = allCommits.filter(c => MY_NAMES.includes(c.author));
+          totalCommits = myCommits.length;
+          if (myCommits.length > 0) {
+            lastCommitDate = myCommits[0]!.date.slice(0, 10);
+          }
 
-            for (const c of myCommits) {
-              insertCommit.run(
-                c.hash,
-                path,
-                c.author,
-                c.date,
-                c.message,
-                c.commitType ?? null,
-                c.commitScope ?? null,
-              );
-            }
+          for (const c of myCommits) {
+            insertCommit.run(
+              c.hash,
+              path,
+              c.author,
+              c.date,
+              c.message,
+              c.commitType ?? null,
+              c.commitScope ?? null,
+            );
           }
         }
 
