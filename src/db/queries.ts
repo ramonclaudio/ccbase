@@ -96,7 +96,7 @@ export function sessionsByDateRange(
   endMs: number,
 ): Session[] {
   return db
-    .prepare(
+    .query(
       "SELECT * FROM sessions WHERE started_at >= ? AND started_at <= ? ORDER BY started_at",
     )
     .all(startMs, endMs) as Session[];
@@ -107,13 +107,13 @@ export function sessionsByProject(
   projectPath: string,
 ): Session[] {
   return db
-    .prepare("SELECT * FROM sessions WHERE project_path = ? ORDER BY started_at")
+    .query("SELECT * FROM sessions WHERE project_path = ? ORDER BY started_at")
     .all(projectPath) as Session[];
 }
 
 export function openTasks(db: Database): Task[] {
   return db
-    .prepare(
+    .query(
       "SELECT * FROM tasks WHERE status IN ('pending', 'in_progress') ORDER BY status DESC, suite_id",
     )
     .all() as Task[];
@@ -121,13 +121,13 @@ export function openTasks(db: Database): Task[] {
 
 export function completedTasks(db: Database): Task[] {
   return db
-    .prepare("SELECT * FROM tasks WHERE status = 'completed'")
+    .query("SELECT * FROM tasks WHERE status = 'completed'")
     .all() as Task[];
 }
 
 export function projectsWithGitState(db: Database): ProjectWithGitState[] {
   return db
-    .prepare(
+    .query(
       `SELECT p.*, g.branch_count, g.stash_count, g.dirty_file_count,
               g.uncommitted_changes, g.current_branch, g.last_captured
        FROM projects p
@@ -138,7 +138,7 @@ export function projectsWithGitState(db: Database): ProjectWithGitState[] {
 
 export function dirtyProjects(db: Database): ProjectWithGitState[] {
   return db
-    .prepare(
+    .query(
       `SELECT p.*, g.branch_count, g.stash_count, g.dirty_file_count,
               g.uncommitted_changes, g.current_branch, g.last_captured
        FROM project_git_state g
@@ -154,7 +154,7 @@ export function commitsInRange(
   endDate: string,
 ): Commit[] {
   return db
-    .prepare(
+    .query(
       "SELECT * FROM commits WHERE date >= ? AND date <= ? ORDER BY date DESC",
     )
     .all(startDate, endDate) as Commit[];
@@ -165,7 +165,7 @@ export function dailyStatsForDate(
   date: string,
 ): DailyStats | null {
   return (
-    (db.prepare("SELECT * FROM daily_stats WHERE date = ?").get(date) as DailyStats | null) ??
+    (db.query("SELECT * FROM daily_stats WHERE date = ?").get(date) as DailyStats | null) ??
     null
   );
 }
@@ -176,7 +176,7 @@ export function searchHistory(
   limit = 20,
 ): HistorySearchResult[] {
   return db
-    .prepare(
+    .query(
       `SELECT hm.*, f.rank
        FROM history_fts f
        JOIN history_messages hm ON hm.id = f.rowid
@@ -204,7 +204,7 @@ export function sessionSummaryByProject(
   endMs: number,
 ): SessionSummary[] {
   return db
-    .prepare(
+    .query(
       `SELECT project_path,
               COUNT(*) as session_count,
               SUM(duration_minutes) as total_duration,
