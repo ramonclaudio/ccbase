@@ -75,6 +75,17 @@ export function serveCommand(args: string[]): void {
         thinkingBlocks: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE has_thinking=1`)[0],
         errors: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE is_error=1`)[0],
       });
+      // New endpoints for missing data
+      if (pathname === "/api/tokens-by-model") return json(q(`SELECT model, COUNT(*) as msgs, SUM(COALESCE(input_tokens,0)) as inp, SUM(COALESCE(output_tokens,0)) as outp, SUM(has_thinking) as thinking_msgs, ROUND(AVG(CASE WHEN thinking_length>0 THEN thinking_length END)) as avg_think_len, MAX(thinking_length) as max_think_len, SUM(is_error) as errors FROM conversation_messages WHERE model IS NOT NULL AND model!='<synthetic>' GROUP BY model ORDER BY (inp+outp) DESC`));
+      if (pathname === "/api/agents") return json(q(`SELECT agent_id, COUNT(*) as msgs, SUM(COALESCE(input_tokens,0)+COALESCE(output_tokens,0)) as tokens FROM conversation_messages WHERE agent_id IS NOT NULL GROUP BY agent_id ORDER BY msgs DESC LIMIT 20`));
+      if (pathname === "/api/message-types") return json(q(`SELECT raw_type, COUNT(*) as n FROM conversation_messages GROUP BY raw_type ORDER BY n DESC`));
+      if (pathname === "/api/tool-errors") return json(q(`SELECT tool_name, COUNT(*) as calls, SUM(is_error) as errors, ROUND(SUM(is_error)*100.0/COUNT(*),1) as error_pct FROM conversation_messages WHERE tool_name IS NOT NULL GROUP BY tool_name ORDER BY calls DESC LIMIT 20`));
+      if (pathname === "/api/commit-scopes") return json(q(`SELECT commit_type, commit_scope, COUNT(*) as n FROM commits WHERE commit_scope IS NOT NULL AND commit_scope!='' GROUP BY commit_type, commit_scope ORDER BY n DESC LIMIT 20`));
+      if (pathname === "/api/pr-links") return json(q(`SELECT content, timestamp FROM conversation_messages WHERE raw_type='pr-link' ORDER BY timestamp DESC`));
+      if (pathname === "/api/session-summaries") return json(q(`SELECT id, summary, first_prompt, project_path, duration_minutes, message_count FROM sessions WHERE summary IS NOT NULL AND summary!='' ORDER BY started_at DESC LIMIT 50`));
+      if (pathname === "/api/paste-stats") return json(q(`SELECT COUNT(*) as total, SUM(has_paste) as with_paste, ROUND(SUM(has_paste)*100.0/COUNT(*),1) as pct FROM history_messages`)[0]);
+      if (pathname === "/api/project-staleness") return json(q(`SELECT name, type, path, last_commit_date, last_session_date, total_commits, total_sessions FROM projects ORDER BY COALESCE(last_commit_date, last_session_date, '1970') DESC`));
+
       if (pathname === "/api/stats") return json({
         sessions: q(`SELECT COUNT(DISTINCT session_id) as n FROM conversation_messages`)[0],
         messages: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE type IN ('user','assistant')`)[0],
@@ -95,6 +106,10 @@ export function serveCommand(args: string[]): void {
         totalMinutes: q(`SELECT COALESCE(SUM(duration_minutes),0) as n FROM sessions WHERE duration_minutes>0`)[0],
         toolCalls: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE tool_name IS NOT NULL`)[0],
         thinkingBlocks: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE has_thinking=1`)[0],
+        sidechainMsgs: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE is_sidechain=1`)[0],
+        subagents: q(`SELECT COUNT(DISTINCT agent_id) as n FROM conversation_messages WHERE agent_id IS NOT NULL`)[0],
+        errors: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE is_error=1`)[0],
+        pasteRate: q(`SELECT ROUND(SUM(has_paste)*100.0/COUNT(*),1) as n FROM history_messages`)[0],
         today: today(),
       });
 

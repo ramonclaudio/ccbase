@@ -123,6 +123,19 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c"><h2>Recent Commits</h2><div class="sc" id="commits"></div></div>
 </div>
 <div class="g2">
+<div class="c"><h2>Tokens by Model</h2><div id="p_models"></div></div>
+<div class="c"><h2>Thinking Depth by Model</h2><div id="p_thinking"></div></div>
+</div>
+<div class="g3">
+<div class="c"><h2>Tool Usage + Error Rates</h2><div class="sc" id="p_toolerr"></div></div>
+<div class="c"><h2>Subagents</h2><div class="sc" id="p_agents"></div></div>
+<div class="c"><h2>Commit Scopes</h2><div class="sc" id="p_scopes"></div></div>
+</div>
+<div class="g2">
+<div class="c"><h2>Message Types</h2><canvas id="c_msgtypes" height="150"></canvas></div>
+<div class="c"><h2>Session Summaries</h2><div class="sc" id="p_summaries"></div></div>
+</div>
+<div class="g2">
 <div class="c"><h2>Project Health</h2><div class="sc" id="health"></div></div>
 <div class="c"><h2>Tokens by Project</h2><div id="p_tokens"></div></div>
 </div>
@@ -263,6 +276,7 @@ async function load(){
     [(stats.toolCalls?.n||0).toLocaleString(),"tool calls"],[(stats.thinkingBlocks?.n||0).toLocaleString(),"thinking"],
     [stats.commits.n.toLocaleString(),"commits"],[stats.projects.n,"projects"],
     [tm.completed||0,"done"],[tm.in_progress||0,"wip"],[tm.pending||0,"pending"],
+    [(stats.subagents?.n||0).toLocaleString(),"agents"],[(stats.errors?.n||0).toLocaleString(),"errors"],
     [money(stats.planValue?.n||0),"api value"],[tok(stats.totalTokens?.n||0),"tokens"]
   ].map(([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>').join("");
 
@@ -328,6 +342,59 @@ async function load(){
   }).join("");
 
   // Project Health
+  // New widgets: fetch additional data
+  const[tokenModels,toolErrors,agents,commitScopes,msgTypes,summaries]=await Promise.all([
+    F("/api/tokens-by-model"),F("/api/tool-errors"),F("/api/agents"),F("/api/commit-scopes"),F("/api/message-types"),F("/api/session-summaries")
+  ]);
+
+  // Tokens by Model
+  const mmax=Math.max(...tokenModels.map(m=>(m.inp||0)+(m.outp||0)),1);
+  $("p_models").innerHTML=tokenModels.map(m=>{
+    const total=(m.inp||0)+(m.outp||0);
+    const w=Math.round(total/mmax*160);
+    const short=nm(m.model||"?");
+    return '<div class="br"><span class="nm">'+e(short)+'</span><span class="b" style="width:'+w+'px;background:var(--purple)"></span><span class="v">'+tok(total)+'</span><span class="v" style="color:var(--dim)">'+m.msgs+' msgs</span></div>';
+  }).join("");
+
+  // Thinking Depth
+  const tmax=Math.max(...tokenModels.filter(m=>m.avg_think_len).map(m=>m.avg_think_len),1);
+  $("p_thinking").innerHTML=tokenModels.filter(m=>m.thinking_msgs>0).map(m=>{
+    const w=Math.round((m.avg_think_len||0)/tmax*160);
+    return '<div class="br"><span class="nm">'+e(nm(m.model))+'</span><span class="b" style="width:'+w+'px;background:#6e40c9"></span><span class="v">avg '+tok(m.avg_think_len||0)+'c</span><span class="v" style="color:var(--dim)">'+m.thinking_msgs+' blocks</span></div>';
+  }).join("")||'<div style="color:var(--dim);font-size:11px">no thinking data</div>';
+
+  // Tool Errors
+  $("p_toolerr").innerHTML=toolErrors.map(t=>{
+    const errStyle=t.errors>0?'color:var(--red)':'color:var(--dim)';
+    return '<div class="br"><span class="nm">'+e(t.tool_name)+'</span><span class="b" style="width:'+Math.round(t.calls/Math.max(...toolErrors.map(x=>x.calls),1)*130)+'px;background:var(--blue)"></span><span class="v">'+t.calls+'</span><span class="v" style="'+errStyle+'">'+t.errors+' err</span></div>';
+  }).join("");
+
+  // Subagents
+  if(agents.length){
+    const amax=Math.max(...agents.map(a=>a.msgs),1);
+    $("p_agents").innerHTML='<div style="color:var(--dim);font-size:10px;margin-bottom:4px">'+agents.length+' subagents, '+agents.reduce((s,a)=>s+a.msgs,0).toLocaleString()+' messages</div>'+
+    agents.slice(0,12).map(a=>{
+      const w=Math.round(a.msgs/amax*130);
+      return '<div class="br"><span class="nm" style="width:70px">'+e(a.agent_id?.slice(0,8))+'</span><span class="b" style="width:'+w+'px;background:var(--accent)"></span><span class="v">'+a.msgs+'</span><span class="v" style="color:var(--dim)">'+tok(a.tokens)+'t</span></div>';
+    }).join("");
+  }else $("p_agents").innerHTML='<div style="color:var(--dim);font-size:11px">no subagents</div>';
+
+  // Commit Scopes
+  const smax=Math.max(...commitScopes.map(s=>s.n),1);
+  $("p_scopes").innerHTML=commitScopes.map(s=>{
+    const w=Math.round(s.n/smax*130);
+    const color=s.commit_type==='feat'?'var(--green)':s.commit_type==='fix'?'var(--red)':'var(--dim)';
+    return '<div class="br"><span class="nm" style="width:130px">'+e(s.commit_type)+'('+e(s.commit_scope)+')</span><span class="b" style="width:'+w+'px;background:'+color+'"></span><span class="v">'+s.n+'</span></div>';
+  }).join("")||'<div style="color:var(--dim);font-size:11px">no scoped commits</div>';
+
+  // Message Types donut
+  donut($("c_msgtypes"),msgTypes,"raw_type");
+
+  // Session Summaries
+  $("p_summaries").innerHTML=summaries.map(s=>{
+    return '<div class="sn"><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.summary)+'</span><span class="m">'+dur(s.duration_minutes)+' · '+s.message_count+' msgs</span></div>';
+  }).join("")||'<div style="color:var(--dim);font-size:11px">no summaries</div>';
+
   $("health").innerHTML=allProjects.map(p=>{
     const git=p.has_git?'<span class="dot" style="background:var(--green)" title="git"></span>':'<span class="dot" style="background:var(--red)" title="no git"></span>';
     const md=p.has_claude_md?'<span class="dot" style="background:var(--blue)" title="CLAUDE.md"></span>':'<span class="dot" style="background:var(--faint)" title="no CLAUDE.md"></span>';
