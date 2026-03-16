@@ -72,6 +72,14 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .proj-row .dots{display:flex;gap:3px;flex-shrink:0}
 .proj-row .dot{width:8px;height:8px;border-radius:50%}
 .proj-row .info{color:var(--faint);font-size:10px;margin-left:auto}
+.section-toggle{font-size:11px;color:var(--dim);cursor:pointer;padding:6px 0;display:flex;align-items:center;gap:6px;margin:6px 0 2px;user-select:none}
+.section-toggle:hover{color:var(--text)}
+.section-toggle .arrow{display:inline-block;transition:transform .15s;font-size:9px}
+.section-toggle .arrow.open{transform:rotate(90deg)}
+.section-body{overflow:hidden;transition:max-height .2s ease}
+.section-body.collapsed{max-height:0!important;margin:0;opacity:0;pointer-events:none}
+.more-btn{font-size:10px;color:var(--accent);cursor:pointer;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;margin-left:4px}
+.more-btn:hover{background:var(--border)}
 @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
 </style></head><body>
 <h1>Claude Code Analyzer</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History →</a> <button onclick="toggleTheme()" style="margin-left:8px;background:var(--border);border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">☀</button>
@@ -82,6 +90,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
   <div id="clocksub" style="font-size:11px;color:var(--dim);margin-top:4px"></div>
 </div>
 <div class="stats" id="stats"></div>
+<div class="stats" id="stats2" style="display:none"></div>
 
 <div class="filter">
   <input id="sq" placeholder="Search..." onkeydown="if(event.key==='Enter')doSearch()" />
@@ -125,6 +134,8 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c"><h2>Recent Sessions</h2><div class="sc" id="sess"></div></div>
 <div class="c"><h2>Recent Commits</h2><div class="sc" id="commits"></div></div>
 </div>
+<div class="section-toggle" onclick="toggleSection('details')"><span class="arrow" id="arrow_details">&#9654;</span> Model & Tool Details</div>
+<div id="sec_details" class="section-body collapsed">
 <div class="g2">
 <div class="c"><h2>Tokens by Model</h2><div id="p_models"></div></div>
 <div class="c"><h2>Thinking Depth by Model</h2><div id="p_thinking"></div></div>
@@ -134,18 +145,27 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c"><h2>Subagents</h2><div class="sc" id="p_agents"></div></div>
 <div class="c"><h2>Commit Scopes</h2><div class="sc" id="p_scopes"></div></div>
 </div>
-<div class="g2">
-<div class="c"><h2>Message Types</h2><canvas id="c_msgtypes" height="150"></canvas></div>
-<div class="c"><h2>Session Summaries</h2><div class="sc" id="p_summaries"></div></div>
 </div>
+
+<div class="section-toggle" onclick="toggleSection('health')"><span class="arrow" id="arrow_health">&#9654;</span> Project Health & Summaries</div>
+<div id="sec_health" class="section-body collapsed">
 <div class="g2">
 <div class="c"><h2>Project Health & Staleness</h2><div class="sc" id="health"></div></div>
 <div class="c"><h2>Tokens by Project</h2><div id="p_tokens"></div></div>
 </div>
+<div class="g2">
+<div class="c"><h2>Message Types</h2><canvas id="c_msgtypes" height="150"></canvas></div>
+<div class="c"><h2>Session Summaries</h2><div class="sc" id="p_summaries"></div></div>
+</div>
+</div>
+
+<div class="section-toggle" onclick="toggleSection('deep')"><span class="arrow" id="arrow_deep">&#9654;</span> Deep Dive</div>
+<div id="sec_deep" class="section-body collapsed">
 <div class="g3">
 <div class="c"><h2>Plan Mode Sessions</h2><div class="sc" id="p_plans"></div></div>
 <div class="c"><h2>Sidechain / Agent Activity</h2><div id="p_sidechain"></div></div>
 <div class="c"><h2>Paste & Rewind Stats</h2><div id="p_misc"></div></div>
+</div>
 </div>
 
 <script>
@@ -154,6 +174,23 @@ function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?
 (function(){const t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme:light)").matches?"light":"dark");document.documentElement.dataset.theme=t;document.getElementById("themeBtn").textContent=t==="light"?"☾":"☀"})();
 
 const F=s=>fetch(s).then(r=>r.json());
+
+// Section toggle with localStorage persistence
+function toggleSection(id){
+  const el=$("sec_"+id),arrow=$("arrow_"+id);
+  const open=el.classList.toggle("collapsed");
+  arrow.classList.toggle("open",!open);
+  localStorage.setItem("sec_"+id,open?"0":"1");
+}
+function restoreSections(){
+  ["details","health","deep"].forEach(id=>{
+    if(localStorage.getItem("sec_"+id)==="1"){
+      $("sec_"+id).classList.remove("collapsed");
+      $("arrow_"+id).classList.add("open");
+    }
+  });
+}
+restoreSections();
 const nm=p=>p?p.split("/").pop():"?";
 const e=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").slice(0,100);
 const dur=m=>{if(!m||m<1)return"<1m";const h=Math.floor(m/60);return h?h+"h "+Math.round(m%60)+"m":Math.round(m)+"m"};
@@ -285,16 +322,22 @@ async function load(){
     $("clocksub").textContent=totalHours.toLocaleString()+" hours total · "+avgPerDay+" hours/day avg · "+(stats.planValue?.n?money(stats.planValue.n)+" API value":"")+streakText+longestText;
     $("clock").style.display="block";
   }
+  const sf=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
   $("stats").innerHTML=[
-    [stats.sessions.n.toLocaleString(),"sessions"],[stats.messages.n.toLocaleString(),"messages"],
-    [(stats.toolCalls?.n||0).toLocaleString(),"tool calls"],[(stats.thinkingBlocks?.n||0).toLocaleString(),"thinking"],
+    [stats.sessions.n.toLocaleString(),"sessions"],
     [stats.commits.n.toLocaleString(),"commits"],[stats.projects.n,"projects"],
-    [tm.completed||0,"done"],[tm.in_progress||0,"wip"],[tm.pending||0,"pending"],
+    [tm.completed||0,"done"],[tm.in_progress||0,"wip"],
+    [money(stats.planValue?.n||0),"api value"],[tok(stats.totalTokens?.n||0),"tokens"]
+  ].map(sf).join("")+'<button class="more-btn" onclick="const s2=$(\'stats2\');s2.style.display=s2.style.display===\'none\'?\'flex\':\'none\';this.textContent=s2.style.display===\'none\'?\'more\':\'less\';localStorage.setItem(\'stats_more\',s2.style.display===\'none\'?\'0\':\'1\')">'+(localStorage.getItem("stats_more")==="1"?"less":"more")+'</button>';
+  $("stats2").innerHTML=[
+    [stats.messages.n.toLocaleString(),"messages"],
+    [(stats.toolCalls?.n||0).toLocaleString(),"tool calls"],[(stats.thinkingBlocks?.n||0).toLocaleString(),"thinking"],
+    [tm.pending||0,"pending"],
     [(stats.subagents?.n||0).toLocaleString(),"agents"],[(stats.errors?.n||0).toLocaleString(),"errors"],
     [(stats.planSessions?.n||0),"plans"],[(stats.rewinds?.n||0),"rewinds"],
-    [(stats.pasteRate?.n||0)+"%","paste rate"],
-    [money(stats.planValue?.n||0),"api value"],[tok(stats.totalTokens?.n||0),"tokens"]
-  ].map(([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>').join("");
+    [(stats.pasteRate?.n||0)+"%","paste rate"]
+  ].map(sf).join("");
+  if(localStorage.getItem("stats_more")==="1")$("stats2").style.display="flex";
 
   // Charts
   bar($("c_daily"),daily,"date","session_count","#d97757");
