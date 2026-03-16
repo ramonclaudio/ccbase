@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chats</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" id="hljs-dark">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" id="hljs-light" disabled>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
 <style>
 :root,html[data-theme="dark"]{--bg:#262624;--sidebar-bg:#262624;--card:#141413;--border:#3d3d3a;--text:#faf9f5;--dim:#73726c;--faint:#53524e;--accent:#d97757;--user-bg:#141413;--user-border:transparent;--code-bg:#1a1a18;--think-text:#73726c;--cream:#faf9f5}
 html[data-theme="light"]{--bg:#faf9f5;--sidebar-bg:#faf9f5;--card:#f0eee6;--border:#e0ddd4;--text:#141413;--dim:#73726c;--faint:#9a9990;--accent:#c2693f;--user-bg:#f0eee6;--user-border:transparent;--code-bg:#f0eee6;--think-text:#73726c;--cream:#141413}
@@ -43,8 +47,24 @@ body{font-family:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;b
 
 /* Assistant message - claude.ai serif + exact sizing */
 .msg-asst{margin-bottom:28px}
-.msg-asst .text{font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:26.4px;white-space:pre-wrap;word-break:break-word}
-.msg-asst .text code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:"Fira Code","SF Mono",Menlo,monospace;font-size:14px}
+.msg-asst .text{font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:26.4px;word-break:break-word;overflow-wrap:break-word}
+.msg-asst .text p{margin:0 0 12px}
+.msg-asst .text p:last-child{margin-bottom:0}
+.msg-asst .text h1,.msg-asst .text h2,.msg-asst .text h3,.msg-asst .text h4{font-family:system-ui,sans-serif;margin:20px 0 8px;color:var(--cream);line-height:1.3}
+.msg-asst .text h1{font-size:22px}.msg-asst .text h2{font-size:18px}.msg-asst .text h3{font-size:16px;font-weight:600}
+.msg-asst .text code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:"Fira Code","SF Mono",Menlo,monospace;font-size:13px}
+.msg-asst .text pre{background:var(--code-bg);border-radius:8px;padding:14px 16px;margin:12px 0;overflow-x:auto;line-height:1.5}
+.msg-asst .text pre code{background:none;padding:0;font-size:13px;color:var(--text)}
+.msg-asst .text ul,.msg-asst .text ol{margin:8px 0 12px 20px}
+.msg-asst .text li{margin:4px 0;line-height:1.6}
+.msg-asst .text blockquote{border-left:3px solid var(--accent);margin:12px 0;padding:4px 16px;color:var(--dim);font-style:italic}
+.msg-asst .text table{border-collapse:collapse;margin:12px 0;font-size:14px;font-family:system-ui,sans-serif;width:100%}
+.msg-asst .text th,.msg-asst .text td{border:1px solid var(--border);padding:6px 10px;text-align:left}
+.msg-asst .text th{background:var(--code-bg);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+.msg-asst .text hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+.msg-asst .text a{color:var(--accent);text-decoration:none}
+.msg-asst .text a:hover{text-decoration:underline}
+.msg-asst .text strong{font-weight:700;color:var(--cream)}
 .msg-asst .meta{font-size:11px;color:var(--dim);margin-top:8px}
 
 /* Thinking block - claude.ai exact */
@@ -104,12 +124,30 @@ body{font-family:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;b
 </div>
 
 <script>
-function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=t;localStorage.setItem("theme",t);document.getElementById("themeBtn").textContent=t==="light"?"\u263e":"\u2606"}
-(function(){const t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme:light)").matches?"light":"dark");document.documentElement.dataset.theme=t;document.getElementById("themeBtn").textContent=t==="light"?"\u263e":"\u2606"})();
+function setTheme(t){
+  document.documentElement.dataset.theme=t;localStorage.setItem("theme",t);
+  document.getElementById("themeBtn").textContent=t==="light"?"\u263e":"\u2606";
+  document.getElementById("hljs-dark").disabled=(t==="light");
+  document.getElementById("hljs-light").disabled=(t!=="light");
+}
+function toggleTheme(){setTheme(document.documentElement.dataset.theme==="light"?"dark":"light")}
+(function(){const t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme:light)").matches?"light":"dark");setTheme(t)})();
+
+// Configure marked for safe rendering with highlight.js
+marked.setOptions({
+  highlight:function(code,lang){
+    if(lang&&hljs.getLanguage(lang))try{return hljs.highlight(code,{language:lang}).value}catch(e){}
+    try{return hljs.highlightAuto(code).value}catch(e){}
+    return code;
+  },
+  breaks:false,gfm:true
+});
 
 const F=s=>fetch(s).then(r=>r.json());
 const $=id=>document.getElementById(id);
 const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+// Render markdown for assistant text (safe: marked escapes HTML by default)
+function md(s){if(!s)return"";try{return marked.parse(s)}catch(e){return esc(s)}}
 const tok=n=>{if(!n)return"0";if(n>1e6)return(n/1e6).toFixed(1)+"M";if(n>1e3)return(n/1e3).toFixed(1)+"K";return n+""};
 const nm=p=>p?p.split("/").pop():"?";
 
@@ -233,7 +271,7 @@ function renderChat(){
         html+='<div class="result-body" id="'+id+'">'+esc(part.trim()).slice(0,10000)+'</div></div>';
       }else if(!inThinking&&!inTool&&!inResult){
         const text=part.trim();
-        if(text)html+='<span>'+esc(text)+'</span>';
+        if(text)html+=md(text);
       }
     }
 
@@ -244,7 +282,11 @@ function renderChat(){
     return'<div class="msg-asst"><div class="text">'+html+'</div>'+(meta.length?'<div class="meta">'+meta.join(" \xb7 ")+'</div>':'')+'</div>';
   }).filter(Boolean).join("")+'</div>';
 
-  requestAnimationFrame(()=>{$("chat").scrollTop=$("chat").scrollHeight});
+  requestAnimationFrame(()=>{
+    $("chat").scrollTop=$("chat").scrollHeight;
+    // Highlight any code blocks that marked's highlight option missed
+    $("chat").querySelectorAll("pre code:not(.hljs)").forEach(el=>hljs.highlightElement(el));
+  });
 }
 
 ["showThinking","showTools","showProgress"].forEach(id=>{
