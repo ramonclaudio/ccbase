@@ -1,11 +1,10 @@
 import { getDb } from "../db/connection.ts";
-import { join } from "node:path";
 import { DATA_DIR } from "../utils/paths.ts";
 import { today } from "../utils/dates.ts";
 
 export async function exportHtmlCommand(args: string[]): Promise<void> {
   const db = getDb();
-  const outPath = args[0] || join(DATA_DIR, "dashboard.html");
+  const outPath = args[0] || DATA_DIR + "/dashboard.html";
 
   // Pull all data in one shot
   const daily = db.prepare(`SELECT date, message_count, session_count, tool_call_count FROM daily_stats ORDER BY date`).all() as any[];

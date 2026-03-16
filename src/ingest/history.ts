@@ -1,12 +1,11 @@
 import type { Database } from "bun:sqlite";
-import { existsSync } from "node:fs";
 import { HISTORY_FILE } from "../utils/paths.ts";
 import { decodeProjectPath } from "../utils/paths.ts";
 import type { HistoryEntry } from "../utils/parse.ts";
 import { safeParseJson } from "../utils/parse.ts";
 
 export async function ingestHistory(db: Database): Promise<number> {
-  if (!existsSync(HISTORY_FILE)) return 0;
+  if (!await Bun.file(HISTORY_FILE).exists()) return 0;
 
   const text = await Bun.file(HISTORY_FILE).text();
   const lines = text.split("\n").filter(Boolean);

@@ -1,6 +1,6 @@
+import { Glob } from "bun";
 import type { Database } from "bun:sqlite";
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
 import { PROJECTS_DIR } from "../utils/paths.ts";
 import type { SessionsIndexFile } from "../utils/parse.ts";
 import { safeParseJson } from "../utils/parse.ts";
@@ -32,8 +32,8 @@ export async function ingestSessionsIndex(db: Database): Promise<number> {
   const indexDataList: IndexData[] = [];
   for (const dir of dirs) {
     if (!dir.isDirectory()) continue;
-    const dirPath = join(PROJECTS_DIR, dir.name);
-    const indexPath = join(dirPath, "sessions-index.json");
+    const dirPath = PROJECTS_DIR + "/" + dir.name;
+    const indexPath = dirPath + "/sessions-index.json";
 
     if (await Bun.file(indexPath).exists()) {
       try {
@@ -95,11 +95,11 @@ export async function ingestSessionsIndex(db: Database): Promise<number> {
       } else {
         // Fallback: enumerate .jsonl files (sync, inside transaction)
         try {
-          const files = readdirSync(item.dirPath).filter((f) => f.endsWith(".jsonl"));
+          const files = [...new Glob("*.jsonl").scanSync(item.dirPath)];
           for (const file of files) {
             try {
               const sessionId = file.replace(".jsonl", "");
-              const filePath = join(item.dirPath, file);
+              const filePath = item.dirPath + "/" + file;
               const stat = statSync(filePath);
 
               insertSession.run(

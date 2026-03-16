@@ -1,6 +1,6 @@
+import { Glob } from "bun";
 import type { Database } from "bun:sqlite";
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
 import { TASKS_DIR } from "../utils/paths.ts";
 import { safeParseJson } from "../utils/parse.ts";
 
@@ -32,11 +32,11 @@ export async function ingestTasks(db: Database): Promise<number> {
   for (const suiteDir of suiteDirs) {
     if (!suiteDir.isDirectory()) continue;
     const suiteId = suiteDir.name;
-    const suitePath = join(TASKS_DIR, suiteId);
+    const suitePath = TASKS_DIR + "/" + suiteId;
 
     let files: string[];
     try {
-      files = readdirSync(suitePath).filter((f) => f.endsWith(".json"));
+      files = [...new Glob("*.json").scanSync(suitePath)];
     } catch (e) {
       console.error(`Failed to list ${suitePath}:`, e);
       continue;
@@ -44,7 +44,7 @@ export async function ingestTasks(db: Database): Promise<number> {
 
     for (const file of files) {
       try {
-        const filePath = join(suitePath, file);
+        const filePath = suitePath + "/" + file;
         const text = await Bun.file(filePath).text();
         const task = safeParseJson<RawTask>(text);
         if (!task) continue;

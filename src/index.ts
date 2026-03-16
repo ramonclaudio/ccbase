@@ -11,7 +11,7 @@ import { ingestCommand } from "./commands/ingest.ts";
 import { exportHtmlCommand } from "./commands/export-html.ts";
 import { serveCommand } from "./commands/serve.ts";
 
-const [, , command, ...args] = process.argv;
+const [, , command, ...args] = Bun.argv;
 
 async function ensureDb() {
   if (!dbExists()) {

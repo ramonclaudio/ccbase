@@ -1,6 +1,5 @@
 import type { Database } from "bun:sqlite";
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { join, basename } from "node:path";
 import { DEVELOPER_DIR } from "../utils/paths.ts";
 import {
   isGitRepo,
@@ -28,7 +27,7 @@ function listProjects(): { path: string; type: string }[] {
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
     if (SKIP_DIRS.has(entry.name)) continue;
 
-    const parentPath = join(DEVELOPER_DIR, entry.name);
+    const parentPath = DEVELOPER_DIR + "/" + entry.name;
     const projectType = TYPED_PARENTS.get(entry.name);
 
     if (projectType) {
@@ -37,7 +36,7 @@ function listProjects(): { path: string; type: string }[] {
         const children = readdirSync(parentPath, { withFileTypes: true });
         for (const child of children) {
           if (!child.isDirectory() || child.name.startsWith(".")) continue;
-          projects.push({ path: join(parentPath, child.name), type: projectType });
+          projects.push({ path: parentPath + "/" + child.name, type: projectType });
         }
       } catch (e) {
         console.error(`Failed to scan ${parentPath}:`, e);
@@ -80,9 +79,9 @@ export async function ingestProjects(db: Database): Promise<number> {
   const tx = db.transaction(() => {
     for (const { path, type } of projects) {
       try {
-        const name = basename(path);
+        const name = path.split("/").pop() || path;
         const hasGit = isGitRepo(path);
-        const hasClaudeMd = existsSync(join(path, "CLAUDE.md"));
+        const hasClaudeMd = existsSync(path + "/CLAUDE.md");
 
         let lastCommitDate: string | null = null;
         let totalCommits = 0;

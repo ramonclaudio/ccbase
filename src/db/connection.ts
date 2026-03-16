@@ -1,10 +1,9 @@
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
-import { join, resolve } from "node:path";
 
-const PROJECT_ROOT = resolve(import.meta.dir, "../..");
-const DATA_DIR = join(PROJECT_ROOT, "data");
-const DB_PATH = join(DATA_DIR, "analyzer.db");
+const PROJECT_ROOT = import.meta.dir.split("/").slice(0, -2).join("/");
+const DATA_DIR = PROJECT_ROOT + "/data";
+const DB_PATH = DATA_DIR + "/analyzer.db";
 
 let _db: Database | null = null;
 

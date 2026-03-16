@@ -1,8 +1,7 @@
 import { getDb } from "../db/connection.ts";
 import { today } from "../utils/dates.ts";
-import { join } from "node:path";
 
-const PAGES_DIR = join(import.meta.dir, "..", "pages");
+const PAGES_DIR = import.meta.dir + "/../pages";
 const CORS = { "access-control-allow-origin": "*" } as const;
 const HTML_HEADERS = { "content-type": "text/html; charset=utf-8" } as const;
 
@@ -11,8 +10,8 @@ export async function serveCommand(args: string[]): Promise<void> {
   const db = getDb();
   const q = (sql: string, ...p: any[]) => db.query(sql).all(...p);
 
-  const dashboardBytes = await Bun.file(join(PAGES_DIR, "dashboard.html")).bytes();
-  const chatBytes = await Bun.file(join(PAGES_DIR, "chat.html")).bytes();
+  const dashboardBytes = await Bun.file(PAGES_DIR + "/dashboard.html").bytes();
+  const chatBytes = await Bun.file(PAGES_DIR + "/chat.html").bytes();
 
   // Pre-cache heavy queries that don't change between ingests
   const statsCache = { data: null as any, ts: 0 };

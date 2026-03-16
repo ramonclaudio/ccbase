@@ -1,20 +1,18 @@
-import { homedir } from "node:os";
-import { join, resolve, basename } from "node:path";
 import { existsSync } from "node:fs";
 
-export const HOME = Bun.env.HOME ?? homedir();
-export const CLAUDE_HOME = join(HOME, ".claude");
-export const CLAUDE_CONFIG = join(HOME, ".claude.json");
-export const PROJECTS_DIR = join(CLAUDE_HOME, "projects");
-export const HISTORY_FILE = join(CLAUDE_HOME, "history.jsonl");
-export const STATS_FILE = join(CLAUDE_HOME, "stats-cache.json");
-export const TASKS_DIR = join(CLAUDE_HOME, "tasks");
-export const DEVELOPER_DIR = join(HOME, "Developer");
+export const HOME = Bun.env.HOME!;
+export const CLAUDE_HOME = HOME + "/.claude";
+export const CLAUDE_CONFIG = HOME + "/.claude.json";
+export const PROJECTS_DIR = CLAUDE_HOME + "/projects";
+export const HISTORY_FILE = CLAUDE_HOME + "/history.jsonl";
+export const STATS_FILE = CLAUDE_HOME + "/stats-cache.json";
+export const TASKS_DIR = CLAUDE_HOME + "/tasks";
+export const DEVELOPER_DIR = HOME + "/Developer";
 
 /** Project root data directory (adjacent to src/) */
-export const DATA_DIR = resolve(import.meta.dir, "..", "..", "data");
-export const DB_PATH = join(DATA_DIR, "analyzer.db");
-export const INGEST_STATE_PATH = join(DATA_DIR, ".ingest-state.json");
+export const DATA_DIR = import.meta.dir.split("/").slice(0, -2).join("/") + "/data";
+export const DB_PATH = DATA_DIR + "/analyzer.db";
+export const INGEST_STATE_PATH = DATA_DIR + "/.ingest-state.json";
 
 /**
  * Decode a dash-encoded project path back to its filesystem path.
@@ -71,5 +69,5 @@ export function decodeProjectPath(encoded: string): string {
 
 /** Last component of a filesystem path. */
 export function projectName(path: string): string {
-  return basename(path);
+  return path.split("/").pop() || path;
 }

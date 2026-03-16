@@ -1,6 +1,6 @@
+import { Glob } from "bun";
 import type { Database } from "bun:sqlite";
 import { readdirSync, statSync } from "node:fs";
-import { join, basename } from "node:path";
 import { PROJECTS_DIR } from "../utils/paths.ts";
 
 /**
@@ -50,16 +50,16 @@ export async function ingestConversations(db: Database): Promise<number> {
   // Phase 1: Read all files async before transaction
   const fileData: { sessionId: string; agentId: string | null; text: string }[] = [];
   for (const dir of dirs) {
-    const projDir = join(PROJECTS_DIR, dir);
+    const projDir = PROJECTS_DIR + "/" + dir;
     let files: string[];
-    try { files = readdirSync(projDir).filter(f => f.endsWith(".jsonl")); } catch { continue; }
+    try { files = [...new Glob("*.jsonl").scanSync(projDir)]; } catch { continue; }
 
     for (const sub of files) {
-      const path = join(projDir, sub);
+      const path = projDir + "/" + sub;
       try { if (statSync(path).isDirectory()) continue; } catch { continue; }
 
       const isAgent = sub.startsWith("agent-");
-      const sessionId = isAgent ? sub.replace(/^agent-/, "").replace(/\.jsonl$/, "") : basename(sub, ".jsonl");
+      const sessionId = isAgent ? sub.replace(/^agent-/, "").replace(/\.jsonl$/, "") : sub.replace(/\.jsonl$/, "");
       const agentId = isAgent ? sessionId : null;
 
       try {

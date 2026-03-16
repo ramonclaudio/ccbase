@@ -110,8 +110,7 @@ export function safeParseJson<T>(text: string): T | null {
 }
 
 export async function parseJsonFile<T>(path: string): Promise<T> {
-  const text = await Bun.file(path).text();
-  return JSON.parse(text) as T;
+  return Bun.file(path).json() as Promise<T>;
 }
 
 /**

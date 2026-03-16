@@ -1,5 +1,4 @@
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { Glob } from "bun";
 import { getDb } from "../db/connection.ts";
 import { dirtyProjects, openTasks } from "../db/queries.ts";
 import type { ProjectWithGitState } from "../db/queries.ts";
@@ -23,11 +22,11 @@ function isAlive(pid: number): boolean {
   }
 }
 
-function activeSessions(): SessionFile[] {
-  const dir = join(CLAUDE_HOME, "sessions");
+async function activeSessions(): Promise<SessionFile[]> {
+  const dir = CLAUDE_HOME + "/sessions";
   let files: string[];
   try {
-    files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+    files = [...new Glob("*.json").scanSync(dir)];
   } catch {
     return [];
   }
@@ -35,7 +34,7 @@ function activeSessions(): SessionFile[] {
   const alive: SessionFile[] = [];
   for (const f of files) {
     try {
-      const text = require("node:fs").readFileSync(join(dir, f), "utf-8");
+      const text = await Bun.file(dir + "/" + f).text();
       const data = safeParseJson<SessionFile>(text);
       if (data?.pid && isAlive(data.pid)) {
         alive.push(data);
@@ -102,7 +101,7 @@ export async function wipCommand(_args: string[]): Promise<void> {
   }
 
   // Active sessions
-  const sessions = activeSessions();
+  const sessions = await activeSessions();
   if (sessions.length > 0) {
     console.log(`  ${bold(`Active Sessions (${sessions.length})`)}`);
     for (const s of sessions) {
