@@ -34,7 +34,7 @@ export function serveCommand(args: string[]): void {
       if (pathname === "/api/commit-types") return json(q(`SELECT commit_type,COUNT(*) as n FROM commits WHERE commit_type IS NOT NULL AND commit_type!='' GROUP BY commit_type ORDER BY n DESC LIMIT 10`));
       if (pathname === "/api/duration-dist") return json(q(`SELECT CASE WHEN duration_minutes<1 THEN '<1m' WHEN duration_minutes<5 THEN '1-5m' WHEN duration_minutes<15 THEN '5-15m' WHEN duration_minutes<30 THEN '15-30m' WHEN duration_minutes<60 THEN '30-60m' WHEN duration_minutes<120 THEN '1-2h' WHEN duration_minutes<240 THEN '2-4h' ELSE '4h+' END as bucket,COUNT(*) as n FROM sessions GROUP BY bucket ORDER BY MIN(duration_minutes)`));
       if (pathname === "/api/branches") return json(q(`SELECT git_branch,COUNT(*) as n FROM sessions WHERE git_branch IS NOT NULL AND git_branch!='' GROUP BY git_branch ORDER BY n DESC LIMIT 15`));
-      if (pathname === "/api/cost-by-project") return json(q(`SELECT project_path,SUM(cost_usd) as cost,SUM(input_tokens) as inp,SUM(output_tokens) as outp FROM sessions WHERE cost_usd>0 GROUP BY project_path ORDER BY cost DESC LIMIT 15`));
+      if (pathname === "/api/usage-by-project") return json(q(`SELECT project_path,SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp,COUNT(*) as sessions FROM conversation_messages WHERE project_path IS NOT NULL GROUP BY project_path ORDER BY inp DESC LIMIT 15`).length ? q(`SELECT s.project_path, SUM(COALESCE(s.input_tokens,0)) as inp, SUM(COALESCE(s.output_tokens,0)) as outp FROM sessions s WHERE s.project_path IS NOT NULL GROUP BY s.project_path ORDER BY inp DESC LIMIT 15`) : []);
       if (pathname === "/api/churn") return json(q(`SELECT SUBSTR(s.started_at,1,10) as date, SUM(COALESCE(c.added,0)) as added, SUM(COALESCE(c.removed,0)) as removed FROM (SELECT DISTINCT SUBSTR(date,1,10) as d FROM commits) dates LEFT JOIN commits c ON SUBSTR(c.date,1,10)=dates.d LEFT JOIN (SELECT id, CAST(started_at/1000 AS TEXT) as started_at FROM sessions) s ON 1=0 GROUP BY dates.d ORDER BY dates.d`));
       if (pathname === "/api/lines-by-day") return json(q(`SELECT SUBSTR(date,1,10) as d,SUM(CASE WHEN commit_type='feat' THEN 1 ELSE 0 END) as feats,SUM(CASE WHEN commit_type='fix' THEN 1 ELSE 0 END) as fixes,COUNT(*) as total FROM commits GROUP BY d ORDER BY d`));
       if (pathname === "/api/git-state") return json(q(`SELECT project_path,dirty_file_count,stash_count,branch_count,current_branch FROM project_git_state WHERE dirty_file_count>0 OR stash_count>0 ORDER BY dirty_file_count DESC`));
@@ -82,7 +82,14 @@ export function serveCommand(args: string[]): void {
         commits: q(`SELECT COUNT(*) as n FROM commits`)[0],
         projects: q(`SELECT COUNT(*) as n FROM projects`)[0],
         tasks: q(`SELECT status,COUNT(*) as n FROM tasks GROUP BY status`),
-        totalCost: q(`SELECT ROUND(SUM(cost_usd),2) as n FROM sessions`)[0],
+        // Plan value: what this would cost at API rates (Opus: $15/3 per MTok, Sonnet: $15/3, Haiku: $4/1)
+        planValue: q(`SELECT ROUND(
+          SUM(CASE
+            WHEN model LIKE '%opus%' THEN COALESCE(input_tokens,0)/1000000.0*15 + COALESCE(output_tokens,0)/1000000.0*75
+            WHEN model LIKE '%sonnet%' THEN COALESCE(input_tokens,0)/1000000.0*3 + COALESCE(output_tokens,0)/1000000.0*15
+            WHEN model LIKE '%haiku%' THEN COALESCE(input_tokens,0)/1000000.0*1 + COALESCE(output_tokens,0)/1000000.0*5
+            ELSE COALESCE(input_tokens,0)/1000000.0*3 + COALESCE(output_tokens,0)/1000000.0*15
+          END), 2) as n FROM conversation_messages`)[0],
         totalTokens: q(`SELECT SUM(COALESCE(input_tokens,0))+SUM(COALESCE(output_tokens,0)) as n FROM conversation_messages`)[0],
         totalLines: q(`SELECT SUM(COALESCE(lines_added,0))+SUM(COALESCE(lines_removed,0)) as n FROM sessions`)[0],
         totalMinutes: q(`SELECT COALESCE(SUM(duration_minutes),0) as n FROM sessions WHERE duration_minutes>0`)[0],

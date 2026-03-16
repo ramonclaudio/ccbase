@@ -104,7 +104,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 </div>
 <div class="g2">
 <div class="c"><h2>Projects by Sessions</h2><div id="p_sess"></div></div>
-<div class="c"><h2>Projects by Cost</h2><div id="p_cost"></div></div>
+<div class="c"><h2>Projects by Tokens</h2><div id="p_cost"></div></div>
 </div>
 <div class="g3">
 <div class="c"><h2>Commit Types</h2><canvas id="c_types" height="150"></canvas></div>
@@ -154,18 +154,18 @@ async function drilldown(){
   if(fTo)url+="&to="+fTo;
   const sess=await F(url);
   const totalMin=sess.reduce((s,x)=>s+(x.duration_minutes||0),0);
-  const totalCost=sess.reduce((s,x)=>s+(x.cost_usd||0),0);
+  const totalTok=sess.reduce((s,x)=>s+(x.input_tokens||0)+(x.output_tokens||0),0);
   const title=[];
   if(fProj)title.push(nm(fProj));
   if(fFrom===fTo&&fFrom)title.push(fmtD(fFrom));
   else if(fFrom)title.push(fFrom+(fTo?" to "+fTo:""));
   $("ddTitle").textContent=title.join(" · ")||"Filtered";
-  $("ddSub").textContent=sess.length+" sessions · "+dur(Math.round(totalMin))+" · "+money(totalCost);
+  $("ddSub").textContent=sess.length+" sessions · "+dur(Math.round(totalMin))+" · "+tok(totalTok)+" tokens";
   $("ddList").innerHTML=sess.map(s=>{
     const d=s.started_at?new Date(s.started_at):null;
     const dt=d?d.toLocaleString("en",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}):"?";
-    const cost=s.cost_usd?" "+money(s.cost_usd):"";
-    return '<div class="sn" onclick="window.open(\'/chat\',\'_blank\')"><span class="t" style="width:100px">'+dt+'</span><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.first_prompt)+'</span><span class="m">'+dur(s.duration_minutes)+cost+'</span></div>';
+    const toks=(s.input_tokens||s.output_tokens)?" "+tok((s.input_tokens||0)+(s.output_tokens||0))+"t":"";
+    return '<div class="sn" onclick="window.open(\'/chat\',\'_blank\')"><span class="t" style="width:100px">'+dt+'</span><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.first_prompt)+'</span><span class="m">'+dur(s.duration_minutes)+toks+'</span></div>';
   }).join("")||'<div style="color:var(--dim)">none</div>';
   $("dd").classList.add("on");
 }
@@ -231,7 +231,7 @@ async function load(){
   const[stats,daily,hours,projs,types,tasks,sessions,commits,durDist,branches,costProj,gitState,cpd]=await Promise.all([
     F("/api/stats"),F("/api/daily"),F("/api/hours"),F("/api/project-sessions"),F("/api/commit-types"),
     F("/api/tasks"),F("/api/sessions"),F("/api/commits"),F("/api/duration-dist"),F("/api/branches"),
-    F("/api/cost-by-project"),F("/api/git-state"),F("/api/lines-by-day")
+    F("/api/usage-by-project"),F("/api/git-state"),F("/api/lines-by-day")
   ]);
   const allProjects=await F("/api/projects");
 
@@ -255,7 +255,7 @@ async function load(){
     $("clockval").innerHTML=parts.join(' <span style="color:var(--faint);font-size:18px">:</span> ');
     const totalHours=Math.round(totalMin/60);
     const avgPerDay=daily.length?(totalMin/daily.length/60).toFixed(1):"0";
-    $("clocksub").textContent=totalHours.toLocaleString()+" hours total · "+avgPerDay+" hours/day avg · "+(stats.totalCost?.n?money(stats.totalCost.n)+" spent":"");
+    $("clocksub").textContent=totalHours.toLocaleString()+" hours total · "+avgPerDay+" hours/day avg · "+(stats.planValue?.n?money(stats.planValue.n)+" API value":"");
     $("clock").style.display="block";
   }
   $("stats").innerHTML=[
@@ -263,7 +263,7 @@ async function load(){
     [(stats.toolCalls?.n||0).toLocaleString(),"tool calls"],[(stats.thinkingBlocks?.n||0).toLocaleString(),"thinking"],
     [stats.commits.n.toLocaleString(),"commits"],[stats.projects.n,"projects"],
     [tm.completed||0,"done"],[tm.in_progress||0,"wip"],[tm.pending||0,"pending"],
-    [money(stats.totalCost?.n||0),"cost"],[tok(stats.totalTokens?.n||0),"tokens"]
+    [money(stats.planValue?.n||0),"api value"],[tok(stats.totalTokens?.n||0),"tokens"]
   ].map(([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>').join("");
 
   // Charts
@@ -277,7 +277,7 @@ async function load(){
 
   // Project bars (clickable)
   bars($("p_sess"),projs,"project_path","sessions",150,"var(--green)",d=>d.sessions+" · "+dur(d.minutes),true);
-  bars($("p_cost"),costProj.filter(c=>c.cost>0),"project_path","cost",150,"var(--yellow)",d=>money(d.cost),true);
+  bars($("p_cost"),costProj.filter(c=>c.inp>0),"project_path","inp",150,"var(--yellow)",d=>tok(d.inp)+" in / "+tok(d.outp)+" out",true);
   bars($("p_tokens"),costProj.filter(c=>c.inp>0),"project_path","inp",150,"var(--purple)",d=>tok(d.inp+d.outp),true);
 
   // Branches
@@ -315,9 +315,9 @@ async function load(){
   $("sess").innerHTML=sessions.slice(0,50).map(s=>{
     const d=s.started_at?new Date(s.started_at):null;
     const time=d?d.toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit",hour12:false}):"?";
-    const cost=s.cost_usd?'<span style="color:var(--yellow)">'+money(s.cost_usd)+'</span>':"";
+    const toks=(s.input_tokens||s.output_tokens)?'<span style="color:var(--purple)">'+tok((s.input_tokens||0)+(s.output_tokens||0))+'t</span>':"";
     const lines=(s.lines_added||s.lines_removed)?'<span style="color:var(--green)">+'+( s.lines_added||0)+'</span><span style="color:var(--red)">-'+(s.lines_removed||0)+'</span>':"";
-    return '<div class="sn"><span class="t">'+time+'</span><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.first_prompt)+'</span><span class="m">'+dur(s.duration_minutes)+' '+cost+' '+lines+'</span></div>';
+    return '<div class="sn"><span class="t">'+time+'</span><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.first_prompt)+'</span><span class="m">'+dur(s.duration_minutes)+' '+toks+' '+lines+'</span></div>';
   }).join("");
 
   // Commits
