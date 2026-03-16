@@ -7,8 +7,11 @@ import { ingestHistory } from "./history.ts";
 import { ingestStats } from "./stats.ts";
 import { ingestTasks } from "./tasks.ts";
 import { ingestRootConfig } from "./root-config.ts";
+import { ingestConversations } from "./conversations.ts";
 
 const TABLES = [
+  "conversation_fts",
+  "conversation_messages",
   "history_fts",
   "history_messages",
   "commits",
@@ -31,6 +34,7 @@ const steps: IngestStep[] = [
   { name: "stats", fn: ingestStats },
   { name: "tasks", fn: ingestTasks },
   { name: "root-config", fn: ingestRootConfig },
+  { name: "conversations", fn: ingestConversations },
 ];
 
 export async function runIngest(force: boolean): Promise<void> {

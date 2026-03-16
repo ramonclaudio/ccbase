@@ -30,6 +30,24 @@ export function serveCommand(args: string[]): void {
         if (!query) return json([]);
         return json(q(`SELECT hm.timestamp,hm.project_path,hm.display FROM history_fts f JOIN history_messages hm ON hm.id=f.rowid WHERE history_fts MATCH ? ORDER BY hm.timestamp DESC LIMIT 30`, query));
       }
+      // Conversation endpoints
+      if (pathname === "/api/chat/sessions") return json(q(`SELECT DISTINCT session_id, MIN(timestamp) as first_ts, MAX(timestamp) as last_ts, COUNT(*) as msg_count, (SELECT content FROM conversation_messages c2 WHERE c2.session_id=c.session_id AND c2.role='user' AND c2.content IS NOT NULL ORDER BY c2.timestamp LIMIT 1) as first_msg FROM conversation_messages c WHERE type IN ('user','assistant') GROUP BY session_id ORDER BY first_ts DESC LIMIT 100`));
+      if (pathname.startsWith("/api/chat/")) {
+        const sid = pathname.slice(10);
+        if (sid) return json(q(`SELECT uuid,parent_uuid,type,role,content,model,timestamp,tool_name,tool_use_id,input_tokens,output_tokens FROM conversation_messages WHERE session_id=? ORDER BY rowid`, sid));
+      }
+      if (pathname === "/api/chat-search") {
+        const query = searchParams.get("q") || "";
+        if (!query) return json([]);
+        return json(q(`SELECT cm.session_id,cm.timestamp,cm.role,cm.content FROM conversation_fts f JOIN conversation_messages cm ON cm.id=f.rowid WHERE conversation_fts MATCH ? ORDER BY cm.timestamp DESC LIMIT 40`, query));
+      }
+      if (pathname === "/api/conversation-stats") return json({
+        total: q(`SELECT COUNT(*) as n FROM conversation_messages`)[0],
+        byType: q(`SELECT type,COUNT(*) as n FROM conversation_messages GROUP BY type ORDER BY n DESC`),
+        byModel: q(`SELECT model,COUNT(*) as n FROM conversation_messages WHERE model IS NOT NULL GROUP BY model ORDER BY n DESC`),
+        toolUsage: q(`SELECT tool_name,COUNT(*) as n FROM conversation_messages WHERE tool_name IS NOT NULL GROUP BY tool_name ORDER BY n DESC LIMIT 15`),
+        totalTokens: q(`SELECT SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp FROM conversation_messages`)[0],
+      });
       if (pathname === "/api/stats") return json({
         sessions: q(`SELECT COUNT(*) as n FROM sessions`)[0],
         messages: q(`SELECT COUNT(*) as n FROM history_messages`)[0],
@@ -43,6 +61,7 @@ export function serveCommand(args: string[]): void {
       });
 
       if (pathname === "/") return html(PAGE);
+      if (pathname === "/chat") return html(CHAT_PAGE);
       return new Response("not found", { status: 404 });
     },
   });
@@ -112,7 +131,7 @@ canvas{width:100%!important;display:block}
 .proj-row .info{color:var(--faint);font-size:10px;margin-left:auto}
 @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
 </style></head><body>
-<h1>Claude Code Analyzer</h1>
+<h1>Claude Code Analyzer</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History →</a>
 <div class="sub" id="sub">loading...</div>
 <div class="stats" id="stats"></div>
 
@@ -296,4 +315,124 @@ async function load(){
   }).join("");
 }
 load();
+</script></body></html>`;
+
+const CHAT_PAGE = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chat History</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#c9d1d9;--dim:#7d8590;--faint:#484f58;--green:#238636;--blue:#1f6feb;--yellow:#d29922;--red:#da3633;--accent:#39d353;--purple:#8957e5;--user-bg:#1c2333;--asst-bg:#161b22}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column}
+.top{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.top h1{font-size:16px;font-weight:600;color:#e6edf3}
+.top a{color:var(--blue);font-size:12px;text-decoration:none}
+.top .stats{margin-left:auto;font-size:11px;color:var(--dim)}
+.search-bar{padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:8px}
+.search-bar input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-size:12px;outline:none}
+.search-bar input:focus{border-color:var(--blue)}
+.main{display:flex;flex:1;overflow:hidden}
+.sidebar{width:320px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0}
+.sess-item{padding:8px 12px;border-bottom:1px solid #21262d;cursor:pointer;font-size:12px}
+.sess-item:hover{background:#1c2128}
+.sess-item.active{background:var(--user-bg);border-left:2px solid var(--blue)}
+.sess-item .date{color:var(--dim);font-size:10px}
+.sess-item .preview{color:var(--text);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sess-item .meta{color:var(--faint);font-size:10px;margin-top:2px}
+.chat{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:85%;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.msg.user{background:var(--user-bg);border:1px solid #293548;align-self:flex-end;border-radius:8px 8px 2px 8px}
+.msg.assistant{background:var(--asst-bg);border:1px solid var(--border);align-self:flex-start;border-radius:8px 8px 8px 2px}
+.msg .role{font-size:10px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.msg.user .role{color:var(--blue)}
+.msg.assistant .role{color:var(--accent)}
+.msg .tool{background:#21262d;padding:3px 8px;border-radius:3px;font-size:11px;color:var(--purple);margin:4px 0;display:inline-block}
+.msg .model{font-size:9px;color:var(--faint);margin-top:4px}
+.msg .tokens{font-size:9px;color:var(--faint)}
+.empty{color:var(--dim);text-align:center;padding:40px;font-size:13px}
+.tool-stats{padding:8px 12px;border-top:1px solid var(--border);font-size:10px;color:var(--dim)}
+.tool-stats span{margin-right:10px}
+@media(max-width:768px){.sidebar{width:200px}}
+</style></head><body>
+<div class="top">
+  <h1>Chat History</h1>
+  <a href="/">← Dashboard</a>
+  <div class="stats" id="cstats"></div>
+</div>
+<div class="search-bar"><input id="csearch" placeholder="Search conversations (FTS5)..." /></div>
+<div class="main">
+  <div class="sidebar" id="sidebar"><div class="empty">loading...</div></div>
+  <div class="chat" id="chat"><div class="empty">select a session</div></div>
+</div>
+<div class="tool-stats" id="tstats"></div>
+<script>
+const F=s=>fetch(s).then(r=>r.json());
+const $=id=>document.getElementById(id);
+const esc=s=>(s||"").replace(/</g,"&lt;");
+const nm=p=>p?p.split("/").pop():"?";
+
+let allSessions=[];
+
+async function loadSessions(){
+  const[sessions,stats]=await Promise.all([F("/api/chat/sessions"),F("/api/conversation-stats")]);
+  allSessions=sessions;
+  $("cstats").textContent=stats.total.n.toLocaleString()+" messages · "+(stats.totalTokens?.inp?Math.round((stats.totalTokens.inp+stats.totalTokens.outp)/1e6)+"M tokens":"");
+
+  // Tool stats bar
+  const tools=(stats.toolUsage||[]).slice(0,10);
+  $("tstats").innerHTML="<b>Tools:</b> "+tools.map(t=>'<span>'+t.tool_name+' <b>'+t.n+'</b></span>').join("")+" | <b>Models:</b> "+(stats.byModel||[]).map(m=>'<span>'+nm(m.model)+' <b>'+m.n+'</b></span>').join("");
+
+  renderSessions(sessions);
+}
+
+function renderSessions(sessions){
+  $("sidebar").innerHTML=sessions.map(s=>{
+    const d=s.first_ts?new Date(s.first_ts).toLocaleDateString("en",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"?";
+    const preview=esc(s.first_msg||"(no content)").slice(0,80);
+    return '<div class="sess-item" data-id="'+s.session_id+'" onclick="loadChat(this)"><div class="date">'+d+' · '+s.msg_count+' msgs</div><div class="preview">'+preview+'</div><div class="meta">'+s.session_id.slice(0,8)+'...</div></div>';
+  }).join("")||'<div class="empty">no sessions</div>';
+}
+
+async function loadChat(el){
+  document.querySelectorAll(".sess-item").forEach(e=>e.classList.remove("active"));
+  el.classList.add("active");
+  const sid=el.dataset.id;
+  const msgs=await F("/api/chat/"+sid);
+
+  $("chat").innerHTML=msgs.filter(m=>m.type==="user"||m.type==="assistant").map(m=>{
+    const cls=m.role==="user"?"user":"assistant";
+    const role=m.role==="user"?"You":"Claude";
+    let content=esc(m.content||"");
+
+    // Style tool references
+    content=content.replace(/\\[tool: (\\w+)\\]/g,'<span class="tool">$1</span>');
+    content=content.replace(/\\[result\\]/g,'<span class="tool" style="color:var(--green)">result</span>');
+    content=content.replace(/\\[result \\(error\\)\\]/g,'<span class="tool" style="color:var(--red)">error</span>');
+
+    const model=m.model?'<div class="model">'+nm(m.model)+'</div>':"";
+    const tokens=(m.input_tokens||m.output_tokens)?'<span class="tokens">'+(m.input_tokens?m.input_tokens+" in":"")+(m.output_tokens?" "+m.output_tokens+" out":"")+'</span>':"";
+    const tool=m.tool_name?'<div><span class="tool">'+m.tool_name+'</span></div>':"";
+
+    return '<div class="msg '+cls+'"><div class="role">'+role+'</div>'+content+tool+model+tokens+'</div>';
+  }).join("")||'<div class="empty">empty session</div>';
+
+  $("chat").scrollTop=0;
+}
+
+// Search
+$("csearch").addEventListener("input", async function(){
+  const q=this.value.trim();
+  if(!q){renderSessions(allSessions);return}
+  if(q.length<2)return;
+  const res=await F("/api/chat-search?q="+encodeURIComponent(q));
+  // Group by session
+  const sids=[...new Set(res.map(r=>r.session_id))];
+  const fake=sids.map(sid=>{
+    const msgs=res.filter(r=>r.session_id===sid);
+    return{session_id:sid,first_ts:msgs[0]?.timestamp,msg_count:msgs.length,first_msg:msgs[0]?.content};
+  });
+  renderSessions(fake);
+});
+
+loadSessions();
 </script></body></html>`;
