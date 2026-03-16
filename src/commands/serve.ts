@@ -399,8 +399,10 @@ body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:v
 <script>
 const F=s=>fetch(s).then(r=>r.json());
 const $=id=>document.getElementById(id);
-const esc=s=>(s||"").replace(/</g,"&lt;");
+const esc=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const nm=p=>p?p.split("/").pop():"?";
+function toggleEl(el){const t=document.getElementById(el.dataset.target);if(t)t.style.display=t.style.display==="none"?"block":"none"}
+function toggleCl(el){const t=document.getElementById(el.dataset.target);if(t)t.classList.toggle("open")}
 
 let allSessions=[];
 
@@ -498,18 +500,18 @@ function renderChat(){
 
       if(inThinking&&showThinking){
         const id="th"+(uid++);
-        html+='<div class="thinking-toggle" onclick="let b=document.getElementById(\\''+id+"\\');b.style.display=b.style.display==='none'?'block':'none'\">thinking ("+part.length+" chars) ▾</div>";
+        html+='<div class="thinking-toggle" data-target="'+id+'" onclick="toggleEl(this)">thinking ('+part.length+' chars) ▾</div>';
         html+='<div class="thinking" id="'+id+'" style="display:none">'+esc(part)+'</div>';
       }else if(inTool&&showTools){
         const nameMatch=toolMeta.match(/name="([^"]+)"/);
         const tn=nameMatch?nameMatch[1]:"tool";
         const id="tb"+(uid++);
-        html+='<div class="tool-block"><div class="tool-header" onclick="document.getElementById(\\''+id+"\\').classList.toggle('open')\">"+tn+' <span style="font-weight:normal">▾</span></div>';
+        html+='<div class="tool-block"><div class="tool-header" data-target="'+id+'" onclick="toggleCl(this)">'+tn+' <span style="font-weight:normal">▾</span></div>';
         html+='<div class="tool-body" id="'+id+'">'+esc(part.trim())+'</div></div>';
       }else if(inResult&&showTools){
         const isErr=resultMeta.includes('error="true"');
         const id="tr"+(uid++);
-        html+='<div class="tool-result'+(isErr?" error":"")+'"><div class="result-header" onclick="document.getElementById(\\''+id+"\\').classList.toggle('open')\">"+(isErr?"error":"result")+' <span style="font-weight:normal">▾</span></div>';
+        html+='<div class="tool-result'+(isErr?" error":"")+'"><div class="result-header" data-target="'+id+'" onclick="toggleCl(this)">'+(isErr?"error":"result")+' <span style="font-weight:normal">▾</span></div>';
         html+='<div class="result-body" id="'+id+'">'+esc(part.trim()).slice(0,10000)+'</div></div>';
       }else if(!inThinking&&!inTool&&!inResult){
         const text=part.trim();
