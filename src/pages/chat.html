@@ -53,21 +53,22 @@ body{font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-ser
 .think-body{background:var(--code-bg);border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.6;color:var(--dim);max-height:300px;overflow-y:auto;white-space:pre-wrap;font-family:"Fira Code","SF Mono",Menlo,monospace;margin-bottom:12px;display:none}
 .think-body.open{display:block}
 
-/* Tool blocks */
-.tool-card{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:8px 0;overflow:hidden}
-.tool-head{padding:8px 14px;font-size:12px;font-weight:500;color:var(--accent);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none}
-.tool-head:hover{background:rgba(217,119,87,.06)}
-.tool-head .arrow{font-size:10px;transition:transform .15s}
-.tool-head .arrow.open{transform:rotate(90deg)}
-.tool-body{padding:10px 14px;font-size:12px;line-height:1.5;color:var(--dim);max-height:400px;overflow-y:auto;white-space:pre-wrap;font-family:"Fira Code","SF Mono",Menlo,monospace;border-top:1px solid var(--border);display:none}
+/* Tool blocks - claude.ai style collapsible */
+.tool-card{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:10px 0;overflow:hidden}
+.tool-head{padding:10px 16px;font-size:13px;font-weight:500;color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none}
+.tool-head:hover{background:rgba(217,119,87,.04)}
+.tool-head .chevron{font-size:11px;color:var(--faint);transition:transform .15s}
+.tool-head .chevron.open{transform:rotate(90deg)}
+.tool-body{padding:12px 16px;font-size:12px;line-height:1.6;color:var(--dim);max-height:500px;overflow-y:auto;white-space:pre-wrap;font-family:"Fira Code","SF Mono",Menlo,monospace;border-top:1px solid var(--border);display:none}
 .tool-body.open{display:block}
 
 /* Result blocks */
-.result-card{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;margin:8px 0;overflow:hidden}
+.result-card{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;margin:10px 0;overflow:hidden}
 .result-card.error{border-color:#5c3020}
-.result-head{padding:6px 14px;font-size:11px;font-weight:500;color:var(--dim);cursor:pointer;user-select:none}
+.result-head{padding:8px 16px;font-size:12px;font-weight:500;color:var(--dim);cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between}
 .result-card.error .result-head{color:var(--accent)}
-.result-body{padding:10px 14px;font-size:12px;line-height:1.5;color:var(--dim);max-height:400px;overflow-y:auto;white-space:pre-wrap;font-family:"Fira Code","SF Mono",Menlo,monospace;display:none}
+.result-head .chevron{font-size:11px;color:var(--faint)}
+.result-body{padding:12px 16px;font-size:12px;line-height:1.6;color:var(--dim);max-height:500px;overflow-y:auto;white-space:pre-wrap;font-family:"Fira Code","SF Mono",Menlo,monospace;display:none;border-top:1px solid var(--border)}
 .result-body.open{display:block}
 
 /* Progress & system */
@@ -178,7 +179,27 @@ function renderChat(){
     if(t==="system"||t==="summary"||t==="file-history-snapshot"||t==="queue-operation"||t==="pr-link"||t==="last-prompt"||t==="custom-title")return"";
     if(t!=="user"&&t!=="assistant")return"";
 
+    // User messages: if it contains tool_result tags, render those as tool results, not user bubbles
     if(m.role==="user"){
+      if(content.includes("<tool_result")){
+        // This is a tool result message, render as tool result card
+        const resultParts=content.split(/(<tool_result[^>]*>|<\/tool_result>)/);
+        let rhtml="",inR=false,rMeta="";
+        for(const rp of resultParts){
+          if(rp.startsWith("<tool_result")){inR=true;rMeta=rp;continue}
+          if(rp==="</tool_result>"){inR=false;continue}
+          if(inR&&showTools){
+            const isErr=rMeta.includes('error="true"');
+            const id="ur"+(uid++);
+            rhtml+='<div class="result-card'+(isErr?" error":"")+'"><div class="result-head" onclick="toggleId(\''+id+'\')"><span>'+(isErr?"Error":"Result")+'</span><span class="chevron">&#9656;</span></div>';
+            rhtml+='<div class="result-body" id="'+id+'">'+esc(rp.trim()).slice(0,10000)+'</div></div>';
+          }else if(!inR){
+            const text=rp.trim();
+            if(text)rhtml+='<div class="msg-user"><div class="bubble">'+esc(text)+'</div></div>';
+          }
+        }
+        return rhtml;
+      }
       return'<div class="msg-user"><div class="bubble">'+esc(content)+'</div></div>';
     }
 
@@ -203,12 +224,12 @@ function renderChat(){
         const nameMatch=toolMeta.match(/name="([^"]+)"/);
         const tn=nameMatch?nameMatch[1]:"tool";
         const id="tb"+(uid++);
-        html+='<div class="tool-card"><div class="tool-head" onclick="toggleId(\''+id+'\');this.querySelector(\'.arrow\').classList.toggle(\'open\')"><span class="arrow">&#9654;</span> '+esc(tn)+'</div>';
+        html+='<div class="tool-card"><div class="tool-head" onclick="toggleId(\''+id+'\');this.querySelector(\'.chevron\').classList.toggle(\'open\')"><span>&#9654; '+esc(tn)+'</span><span class="chevron">&#9656;</span></div>';
         html+='<div class="tool-body" id="'+id+'">'+esc(part.trim())+'</div></div>';
       }else if(inResult&&showTools){
         const isErr=resultMeta.includes('error="true"');
         const id="tr"+(uid++);
-        html+='<div class="result-card'+(isErr?" error":"")+'"><div class="result-head" onclick="toggleId(\''+id+'\')">'+(isErr?"Error":"Result")+' &#9656;</div>';
+        html+='<div class="result-card'+(isErr?" error":"")+'"><div class="result-head" onclick="toggleId(\''+id+'\')"><span>'+(isErr?"Error":"Result")+'</span><span class="chevron">&#9656;</span></div>';
         html+='<div class="result-body" id="'+id+'">'+esc(part.trim()).slice(0,10000)+'</div></div>';
       }else if(!inThinking&&!inTool&&!inResult){
         const text=part.trim();
