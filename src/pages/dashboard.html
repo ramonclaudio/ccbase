@@ -2,7 +2,8 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Claude Code Analyzer</title>
 <style>
-:root{--bg:#141413;--card:#1c1c1a;--border:#3d3d3a;--text:#e8e6dc;--dim:#87867f;--faint:#5c5b56;--green:#4ade80;--blue:#60a5fa;--yellow:#fbbf24;--red:#f87171;--accent:#d97757;--purple:#c084fc;--cream:#f0eee6;--charcoal:#3d3d3a}
+:root,html[data-theme="dark"]{--bg:#141413;--card:#1c1c1a;--border:#3d3d3a;--text:#e8e6dc;--dim:#87867f;--faint:#5c5b56;--green:#4ade80;--blue:#60a5fa;--yellow:#fbbf24;--red:#f87171;--accent:#d97757;--purple:#c084fc;--cream:#f0eee6;--charcoal:#3d3d3a}
+html[data-theme="light"]{--bg:#f0eee6;--card:#ffffff;--border:#d4d2c8;--text:#3d3d3a;--dim:#87867f;--faint:#b0aea5;--green:#16a34a;--blue:#2563eb;--yellow:#d97706;--red:#dc2626;--accent:#c2693f;--purple:#7c3aed;--cream:#141413;--charcoal:#e8e6dc}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:"Styrene A","Styrene B",-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:16px 20px;max-width:1400px;margin:0 auto;font-size:13px}
 h1{font-size:18px;font-weight:600;color:var(--cream);display:inline}
@@ -73,7 +74,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .proj-row .info{color:var(--faint);font-size:10px;margin-left:auto}
 @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
 </style></head><body>
-<h1>Claude Code Analyzer</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History →</a>
+<h1>Claude Code Analyzer</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History →</a> <button onclick="toggleTheme()" style="margin-left:8px;background:var(--border);border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">☀</button>
 <div class="sub" id="sub">loading...</div>
 <div id="clock" style="margin-bottom:16px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:none">
   <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Total Time Coding with Claude</div>
@@ -147,6 +148,10 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 </div>
 
 <script>
+// Theme
+function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=t;localStorage.setItem("theme",t);document.getElementById("themeBtn").textContent=t==="light"?"☾":"☀"}
+(function(){const t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme:light)").matches?"light":"dark");document.documentElement.dataset.theme=t;document.getElementById("themeBtn").textContent=t==="light"?"☾":"☀"})();
+
 const F=s=>fetch(s).then(r=>r.json());
 const nm=p=>p?p.split("/").pop():"?";
 const e=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").slice(0,100);

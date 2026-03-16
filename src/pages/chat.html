@@ -2,7 +2,8 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chat History</title>
 <style>
-:root{--bg:#141413;--card:#1c1c1a;--border:#3d3d3a;--text:#e8e6dc;--dim:#87867f;--faint:#5c5b56;--green:#4ade80;--blue:#60a5fa;--yellow:#fbbf24;--red:#f87171;--accent:#d97757;--purple:#c084fc;--cream:#f0eee6;--user-bg:#2a2318;--asst-bg:#1c1c1a}
+:root,html[data-theme="dark"]{--bg:#141413;--card:#1c1c1a;--border:#3d3d3a;--text:#e8e6dc;--dim:#87867f;--faint:#5c5b56;--green:#4ade80;--blue:#60a5fa;--yellow:#fbbf24;--red:#f87171;--accent:#d97757;--purple:#c084fc;--cream:#f0eee6;--user-bg:#2a2318;--asst-bg:#1c1c1a}
+html[data-theme="light"]{--bg:#f0eee6;--card:#ffffff;--border:#d4d2c8;--text:#3d3d3a;--dim:#87867f;--faint:#b0aea5;--green:#16a34a;--blue:#2563eb;--yellow:#d97706;--red:#dc2626;--accent:#c2693f;--purple:#7c3aed;--cream:#141413;--user-bg:#fef3e2;--asst-bg:#ffffff}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:"Styrene A","Styrene B",-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column}
 .top{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
@@ -52,6 +53,7 @@ body{font-family:"Styrene A","Styrene B",-apple-system,system-ui,"Segoe UI",Robo
 <div class="top">
   <h1>Chat History</h1>
   <a href="/">← Dashboard</a>
+  <button onclick="toggleTheme()" style="background:var(--border);border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">☀</button>
   <div class="stats" id="cstats"></div>
 </div>
 <div class="search-bar">
@@ -67,10 +69,14 @@ body{font-family:"Styrene A","Styrene B",-apple-system,system-ui,"Segoe UI",Robo
 </div>
 <div class="tool-stats" id="tstats"></div>
 <script>
+function toggleTheme(){const t=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=t;localStorage.setItem("theme",t);document.getElementById("themeBtn").textContent=t==="light"?"☾":"☀"}
+(function(){const t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme:light)").matches?"light":"dark");document.documentElement.dataset.theme=t;document.getElementById("themeBtn").textContent=t==="light"?"☾":"☀"})();
+
 const F=s=>fetch(s).then(r=>r.json());
 const $=id=>document.getElementById(id);
 const esc=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const nm=p=>p?p.split("/").pop():"?";
+const tok=n=>{if(!n)return"0";if(n>1e6)return(n/1e6).toFixed(1)+"M";if(n>1e3)return(n/1e3).toFixed(1)+"K";return n+""};
 function toggleEl(el){const t=document.getElementById(el.dataset.target);if(t)t.style.display=t.style.display==="none"?"block":"none"}
 function toggleCl(el){const t=document.getElementById(el.dataset.target);if(t)t.classList.toggle("open")}
 
