@@ -64,7 +64,6 @@ export function gitRecentCommits(dir: string, since?: string): GitCommit[] {
     "log",
     "--format=%H|%aI|%an|%s",
     "--no-merges",
-    "-100",
   ];
   if (since) args.push(`--since=${since}`);
 

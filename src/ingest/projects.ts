@@ -105,7 +105,7 @@ export async function ingestProjects(db: Database): Promise<number> {
           );
 
           // Recent commits
-          const commits = gitRecentCommits(path, THIRTY_DAYS_AGO);
+          const commits = gitRecentCommits(path);
           totalCommits = commits.length;
           if (commits.length > 0) {
             lastCommitDate = commits[0]!.date.slice(0, 10);
