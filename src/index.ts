@@ -9,6 +9,7 @@ import { sqlCommand } from "./commands/sql.ts";
 import { searchCommand } from "./commands/search.ts";
 import { ingestCommand } from "./commands/ingest.ts";
 import { exportHtmlCommand } from "./commands/export-html.ts";
+import { serveCommand } from "./commands/serve.ts";
 
 const [, , command, ...args] = process.argv;
 
@@ -33,7 +34,8 @@ Commands:
   progress [PROJECT]              What shipped this week
   search QUERY                    Full-text search across history
   sql "SELECT ..."                Raw SQL query
-  export [path]                   Generate HTML dashboard
+  serve [port]                     Live dashboard on localhost
+  export [path]                   Generate static HTML dashboard
   ingest [--force]                Parse Claude Code data into database
 
 Run 'ingest' first, or any command will auto-ingest on first use.`);
@@ -64,6 +66,10 @@ async function main() {
     case "sql":
       await ensureDb();
       sqlCommand(args);
+      break;
+    case "serve":
+      await ensureDb();
+      serveCommand(args);
       break;
     case "export":
       await ensureDb();
