@@ -139,21 +139,27 @@ export async function serveCommand(args: string[]): Promise<void> {
         return Response.json(blocks, { headers: CORS });
       },
       "/api/plan-mode": () => Response.json(q(`SELECT session_id,COUNT(*) as n FROM conversation_messages WHERE tool_name='EnterPlanMode' GROUP BY session_id ORDER BY n DESC`), { headers: CORS }),
-      "/api/conversation-stats": () => Response.json({
-        total: q(`SELECT COUNT(*) as n FROM conversation_messages`)[0],
-        byType: q(`SELECT type,COUNT(*) as n FROM conversation_messages GROUP BY type ORDER BY n DESC`),
-        byModel: q(`SELECT model,COUNT(*) as n FROM conversation_messages WHERE model IS NOT NULL AND model!='<synthetic>' GROUP BY model ORDER BY n DESC`),
-        toolUsage: q(`SELECT tool_name,COUNT(*) as n FROM conversation_messages WHERE tool_name IS NOT NULL GROUP BY tool_name ORDER BY n DESC LIMIT 15`),
-        totalTokens: q(`SELECT SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp FROM conversation_messages`)[0],
-        sessions: q(`SELECT COUNT(DISTINCT session_id) as n FROM conversation_messages`)[0],
-        thinkingBlocks: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE has_thinking=1`)[0],
-        errors: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE is_error=1`)[0],
-      }, { headers: CORS }),
-      "/api/sidechain-stats": () => Response.json({
-        total: q(`SELECT COUNT(*) as n FROM conversation_messages WHERE is_sidechain=1`)[0],
-        agents: q(`SELECT COUNT(DISTINCT agent_id) as n FROM conversation_messages WHERE agent_id IS NOT NULL`)[0],
-        byAgent: q(`SELECT agent_id,COUNT(*) as msgs,SUM(COALESCE(input_tokens,0)+COALESCE(output_tokens,0)) as tokens FROM conversation_messages WHERE agent_id IS NOT NULL GROUP BY agent_id ORDER BY msgs DESC LIMIT 10`),
-      }, { headers: CORS }),
+      "/api/conversation-stats": () => {
+        const s = getStats();
+        return Response.json({
+          total: s.totalConvLines,
+          byType: q(`SELECT type,COUNT(*) as n FROM conversation_messages GROUP BY type ORDER BY n DESC`),
+          byModel: q(`SELECT model,COUNT(*) as n FROM conversation_messages WHERE model IS NOT NULL AND model!='<synthetic>' GROUP BY model ORDER BY n DESC`),
+          toolUsage: q(`SELECT tool_name,COUNT(*) as n FROM conversation_messages WHERE tool_name IS NOT NULL GROUP BY tool_name ORDER BY n DESC LIMIT 15`),
+          totalTokens: s.totalTokens,
+          sessions: s.sessions,
+          thinkingBlocks: s.thinkingBlocks,
+          errors: s.errors,
+        }, { headers: CORS });
+      },
+      "/api/sidechain-stats": () => {
+        const s = getStats();
+        return Response.json({
+          total: s.sidechainMsgs,
+          agents: s.subagents,
+          byAgent: q(`SELECT agent_id,COUNT(*) as msgs,SUM(COALESCE(input_tokens,0)+COALESCE(output_tokens,0)) as tokens FROM conversation_messages WHERE agent_id IS NOT NULL GROUP BY agent_id ORDER BY msgs DESC LIMIT 10`),
+        }, { headers: CORS });
+      },
 
       "/api/sessions": (req) => {
         const sp = new URL(req.url).searchParams;
