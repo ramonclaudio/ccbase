@@ -211,7 +211,21 @@ export function serveCommand(args: string[]): void {
       "/api/tokens-by-model": () => Response.json(q(`SELECT model,COUNT(*) as msgs,SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp,SUM(has_thinking) as thinking_msgs,ROUND(AVG(CASE WHEN thinking_length>0 THEN thinking_length END)) as avg_think_len,MAX(thinking_length) as max_think_len,SUM(is_error) as errors FROM conversation_messages WHERE model IS NOT NULL AND model!='<synthetic>' GROUP BY model ORDER BY (inp+outp) DESC`), { headers: CORS }),
       "/api/agents": () => Response.json(q(`SELECT agent_id,COUNT(*) as msgs,SUM(COALESCE(input_tokens,0)+COALESCE(output_tokens,0)) as tokens FROM conversation_messages WHERE agent_id IS NOT NULL GROUP BY agent_id ORDER BY msgs DESC LIMIT 20`), { headers: CORS }),
       "/api/message-types": () => Response.json(q(`SELECT raw_type,COUNT(*) as n FROM conversation_messages GROUP BY raw_type ORDER BY n DESC`), { headers: CORS }),
-      "/api/tool-errors": () => Response.json(q(`SELECT tool_name,COUNT(*) as calls,SUM(is_error) as errors,ROUND(SUM(is_error)*100.0/COUNT(*),1) as error_pct FROM conversation_messages WHERE tool_name IS NOT NULL GROUP BY tool_name ORDER BY calls DESC LIMIT 20`), { headers: CORS }),
+      "/api/tool-errors": () => {
+        // tool_name is on assistant messages, is_error is on the NEXT user message
+        // Use LAG to attribute errors to the tool that caused them
+        const rows = q(`SELECT tool_name, COUNT(*) as calls,
+          SUM(CASE WHEN next_is_error = 1 THEN 1 ELSE 0 END) as errors,
+          ROUND(SUM(CASE WHEN next_is_error = 1 THEN 1 ELSE 0 END)*100.0/COUNT(*),1) as error_pct
+          FROM (
+            SELECT tool_name, LEAD(is_error) OVER (PARTITION BY session_id ORDER BY rowid) as next_is_error
+            FROM conversation_messages
+            WHERE tool_name IS NOT NULL OR (is_error = 1 AND type = 'user')
+          )
+          WHERE tool_name IS NOT NULL
+          GROUP BY tool_name ORDER BY calls DESC LIMIT 20`);
+        return Response.json(rows, { headers: CORS });
+      },
       "/api/commit-scopes": () => Response.json(q(`SELECT commit_type,commit_scope,COUNT(*) as n FROM commits WHERE commit_scope IS NOT NULL AND commit_scope!='' GROUP BY commit_type,commit_scope ORDER BY n DESC LIMIT 20`), { headers: CORS }),
       "/api/pr-links": () => Response.json(q(`SELECT content,timestamp FROM conversation_messages WHERE raw_type='pr-link' ORDER BY timestamp DESC`), { headers: CORS }),
       "/api/session-summaries": () => Response.json(q(`SELECT id,summary,first_prompt,project_path,duration_minutes,message_count FROM sessions WHERE summary IS NOT NULL AND summary!='' ORDER BY started_at DESC LIMIT 50`), { headers: CORS }),

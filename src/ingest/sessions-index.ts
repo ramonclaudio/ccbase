@@ -72,7 +72,7 @@ async function parseSessionMetadata(path: string, sessionId: string, dirName: st
       const ts = d.timestamp as number | undefined;
       if (ts) { if (ts < firstTs) firstTs = ts; if (ts > lastTs) lastTs = ts; }
 
-      if (d.cwd) fallback.projectPath = "/" + String(d.cwd);
+      if (d.cwd) { const cwd = String(d.cwd); fallback.projectPath = cwd.startsWith("/") ? cwd : "/" + cwd; }
       if (!fallback.gitBranch && d.gitBranch) fallback.gitBranch = String(d.gitBranch);
       if (d.isSidechain) fallback.isSidechain = true;
 
