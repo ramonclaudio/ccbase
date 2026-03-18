@@ -5,3 +5,5 @@ data/analyzer.db-wal
 data/analyzer.db-shm
 data/.ingest-state.json
 *.tsbuildinfo
+analyzer.db
+index
