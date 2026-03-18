@@ -1,13 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { DEVELOPER_DIR, dirExists, listDirs } from "../utils/paths.ts";
-import {
-  isGitRepo,
-  gitStatus,
-  gitStashCount,
-  gitBranches,
-  gitCurrentBranch,
-  gitRecentCommits,
-} from "../utils/git.ts";
+import { isGitRepo, gitState, gitRecentCommits } from "../utils/git.ts";
 
 const SKIP_DIRS = new Set(["prompts"]);
 const TYPED_PARENTS = new Map([
@@ -16,6 +9,31 @@ const TYPED_PARENTS = new Map([
   ["forks", "fork"],
   ["refs", "ref"],
 ]);
+const MY_NAMES = new Set(["Ray", "the author", "the author", "ramonclaudio"]);
+
+interface ProjectData {
+  path: string;
+  name: string;
+  type: string;
+  hasGit: boolean;
+  hasClaudeMd: boolean;
+  lastCommitDate: string | null;
+  totalCommits: number;
+  gitState: {
+    branchCount: number;
+    stashCount: number;
+    dirtyCount: number;
+    currentBranch: string;
+  } | null;
+  commits: {
+    hash: string;
+    author: string;
+    date: string;
+    message: string;
+    commitType: string | null;
+    commitScope: string | null;
+  }[];
+}
 
 function listProjects(): { path: string; type: string }[] {
   const projects: { path: string; type: string }[] = [];
@@ -40,7 +58,6 @@ function listProjects(): { path: string; type: string }[] {
         console.error(`Failed to scan ${parentPath}:`, e);
       }
     } else {
-      // Top-level dir is itself a project
       projects.push({ path: parentPath, type: "other" });
     }
   }
@@ -48,98 +65,95 @@ function listProjects(): { path: string; type: string }[] {
   return projects;
 }
 
-const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 86_400_000)
-  .toISOString()
-  .slice(0, 10);
+async function collectProjectData(proj: { path: string; type: string }): Promise<ProjectData> {
+  const { path, type } = proj;
+  const name = path.split("/").pop() || path;
+  const hasGit = isGitRepo(path);
+  const hasClaudeMd = Bun.file(path + "/CLAUDE.md").size > 0;
+
+  let lastCommitDate: string | null = null;
+  let totalCommits = 0;
+  let gs: ProjectData["gitState"] = null;
+  let commits: ProjectData["commits"] = [];
+
+  if (hasGit) {
+    const [state, allCommits] = await Promise.all([gitState(path), gitRecentCommits(path)]);
+    gs = {
+      branchCount: state.branchCount,
+      stashCount: state.stashCount,
+      dirtyCount: state.dirty,
+      currentBranch: state.currentBranch,
+    };
+
+    const myCommits = allCommits.filter(c => MY_NAMES.has(c.author));
+    totalCommits = myCommits.length;
+    if (myCommits.length > 0) {
+      lastCommitDate = myCommits[0]!.date.slice(0, 10);
+    }
+
+    commits = myCommits.map(c => ({
+      hash: c.hash,
+      author: c.author,
+      date: c.date,
+      message: c.message,
+      commitType: c.commitType ?? null,
+      commitScope: c.commitScope ?? null,
+    }));
+  }
+
+  return { path, name, type, hasGit, hasClaudeMd, lastCommitDate, totalCommits, gitState: gs, commits };
+}
+
+function insertProjectData(
+  d: ProjectData,
+  stmts: { project: ReturnType<Database["query"]>; gitState: ReturnType<Database["query"]>; commit: ReturnType<Database["query"]> },
+): void {
+  if (d.gitState) {
+    stmts.gitState.run(
+      d.path, d.gitState.branchCount, d.gitState.stashCount,
+      d.gitState.dirtyCount, d.gitState.dirtyCount > 0 ? 1 : 0,
+      d.gitState.currentBranch, new Date().toISOString(),
+    );
+  }
+
+  for (const c of d.commits) {
+    stmts.commit.run(c.hash, d.path, c.author, c.date, c.message, c.commitType, c.commitScope);
+  }
+
+  stmts.project.run(
+    d.path, d.name, d.type, d.hasGit ? 1 : 0, d.hasClaudeMd ? 1 : 0,
+    d.lastCommitDate, d.totalCommits,
+  );
+}
 
 export async function ingestProjects(db: Database): Promise<number> {
   const projects = listProjects();
   if (projects.length === 0) return 0;
 
-  const insertProject = db.query(`
-    INSERT OR REPLACE INTO projects (path, name, type, has_git, has_claude_md, last_commit_date, total_commits)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
+  const results = await Promise.allSettled(projects.map(p => collectProjectData(p)));
+  const projectData = results
+    .filter((r): r is PromiseFulfilledResult<ProjectData> => r.status === "fulfilled")
+    .map(r => r.value);
 
-  const insertGitState = db.query(`
-    INSERT OR REPLACE INTO project_git_state
-    (project_path, branch_count, stash_count, dirty_file_count, uncommitted_changes, current_branch, last_captured)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
+  const stmts = {
+    project: db.query(`
+      INSERT OR REPLACE INTO projects (path, name, type, has_git, has_claude_md, last_commit_date, total_commits)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `),
+    gitState: db.query(`
+      INSERT OR REPLACE INTO project_git_state
+      (project_path, branch_count, stash_count, dirty_file_count, uncommitted_changes, current_branch, last_captured)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `),
+    commit: db.query(`
+      INSERT OR REPLACE INTO commits (hash, project_path, author, date, message, commit_type, commit_scope)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `),
+  };
 
-  const insertCommit = db.query(`
-    INSERT OR REPLACE INTO commits (hash, project_path, author, date, message, commit_type, commit_scope)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
+  db.transaction(() => {
+    for (const d of projectData) insertProjectData(d, stmts);
+  })();
 
-  let count = 0;
-
-  const tx = db.transaction(() => {
-    for (const { path, type } of projects) {
-      try {
-        const name = path.split("/").pop() || path;
-        const hasGit = isGitRepo(path);
-        const hasClaudeMd = Bun.file(path + "/CLAUDE.md").size > 0;
-
-        let lastCommitDate: string | null = null;
-        let totalCommits = 0;
-
-        if (hasGit) {
-          // Git state
-          const status = gitStatus(path);
-          const stashes = gitStashCount(path);
-          const branches = gitBranches(path);
-          const branch = gitCurrentBranch(path);
-
-          insertGitState.run(
-            path,
-            branches.count,
-            stashes,
-            status.dirty,
-            status.dirty > 0 ? 1 : 0,
-            branch,
-            new Date().toISOString(),
-          );
-
-          // Commits - only mine across all repos (including forks/refs)
-          const MY_NAMES = ["Ray", "the author", "the author", "ramonclaudio"];
-          const allCommits = gitRecentCommits(path);
-          const myCommits = allCommits.filter(c => MY_NAMES.includes(c.author));
-          totalCommits = myCommits.length;
-          if (myCommits.length > 0) {
-            lastCommitDate = myCommits[0]!.date.slice(0, 10);
-          }
-
-          for (const c of myCommits) {
-            insertCommit.run(
-              c.hash,
-              path,
-              c.author,
-              c.date,
-              c.message,
-              c.commitType ?? null,
-              c.commitScope ?? null,
-            );
-          }
-        }
-
-        insertProject.run(
-          path,
-          name,
-          type,
-          hasGit ? 1 : 0,
-          hasClaudeMd ? 1 : 0,
-          lastCommitDate,
-          totalCommits,
-        );
-
-        count++;
-      } catch (e) {
-        console.error(`Failed to ingest project ${path}:`, e);
-      }
-    }
-  });
-
-  tx();
-  return count;
+  return projectData.length;
 }

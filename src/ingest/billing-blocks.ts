@@ -9,6 +9,48 @@ interface SessionRow {
   output_tokens: number | null;
 }
 
+interface BillingBlock {
+  start: number;
+  end: number;
+  cost: number;
+  inputTok: number;
+  outputTok: number;
+  count: number;
+  firstStart: number;
+  lastEnd: number;
+}
+
+function aggregateBillingBlocks(sessions: SessionRow[]): Map<number, BillingBlock> {
+  const blocks = new Map<number, BillingBlock>();
+
+  for (const s of sessions) {
+    const bs = billingBlockStart(s.started_at);
+    const end = s.ended_at ?? s.started_at;
+    const existing = blocks.get(bs);
+    if (existing) {
+      existing.cost += s.cost_usd ?? 0;
+      existing.inputTok += s.input_tokens ?? 0;
+      existing.outputTok += s.output_tokens ?? 0;
+      existing.count++;
+      if (s.started_at < existing.firstStart) existing.firstStart = s.started_at;
+      if (end > existing.lastEnd) existing.lastEnd = end;
+    } else {
+      blocks.set(bs, {
+        start: bs,
+        end: billingBlockEnd(s.started_at),
+        cost: s.cost_usd ?? 0,
+        inputTok: s.input_tokens ?? 0,
+        outputTok: s.output_tokens ?? 0,
+        count: 1,
+        firstStart: s.started_at,
+        lastEnd: end,
+      });
+    }
+  }
+
+  return blocks;
+}
+
 export async function ingestBillingBlocks(db: Database): Promise<number> {
   const sessions = db.query(
     `SELECT started_at, ended_at, cost_usd, input_tokens, output_tokens
@@ -19,45 +61,8 @@ export async function ingestBillingBlocks(db: Database): Promise<number> {
 
   if (sessions.length === 0) return 0;
 
-  // Group sessions into 5-hour blocks
-  const blocks = new Map<number, {
-    start: number;
-    end: number;
-    cost: number;
-    inTok: number;
-    outTok: number;
-    count: number;
-    firstStart: number;
-    lastEnd: number;
-  }>();
-
-  for (const s of sessions) {
-    const bs = billingBlockStart(s.started_at);
-    const existing = blocks.get(bs);
-    const end = s.ended_at ?? s.started_at;
-    if (existing) {
-      existing.cost += s.cost_usd ?? 0;
-      existing.inTok += s.input_tokens ?? 0;
-      existing.outTok += s.output_tokens ?? 0;
-      existing.count++;
-      if (s.started_at < existing.firstStart) existing.firstStart = s.started_at;
-      if (end > existing.lastEnd) existing.lastEnd = end;
-    } else {
-      blocks.set(bs, {
-        start: bs,
-        end: billingBlockEnd(s.started_at),
-        cost: s.cost_usd ?? 0,
-        inTok: s.input_tokens ?? 0,
-        outTok: s.output_tokens ?? 0,
-        count: 1,
-        firstStart: s.started_at,
-        lastEnd: end,
-      });
-    }
-  }
-
-  const now = Date.now();
-  const currentBlock = billingBlockStart(now);
+  const blocks = aggregateBillingBlocks(sessions);
+  const currentBlock = billingBlockStart(Date.now());
 
   const insert = db.query(
     `INSERT OR REPLACE INTO billing_blocks
@@ -66,24 +71,20 @@ export async function ingestBillingBlocks(db: Database): Promise<number> {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
 
-  const tx = db.transaction(() => {
+  db.transaction(() => {
     for (const b of blocks.values()) {
       const durationMin = Math.max(1, (b.lastEnd - b.firstStart) / 60_000);
-      const totalTokens = b.inTok + b.outTok;
+      const totalTokens = b.inputTok + b.outputTok;
       insert.run(
-        b.start,
-        b.end,
+        b.start, b.end,
         b.start === currentBlock ? "active" : "completed",
         Math.round(b.cost * 100) / 100,
-        b.inTok,
-        b.outTok,
-        b.count,
+        b.inputTok, b.outputTok, b.count,
         Math.round(totalTokens / durationMin),
         Math.round((b.cost / durationMin) * 10000) / 10000,
       );
     }
-  });
+  })();
 
-  tx();
   return blocks.size;
 }

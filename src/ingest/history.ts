@@ -1,15 +1,13 @@
 import type { Database } from "bun:sqlite";
-import { HISTORY_FILE } from "../utils/paths.ts";
-import { decodeProjectPath } from "../utils/paths.ts";
+import { HISTORY_FILE, decodeProjectPath } from "../utils/paths.ts";
 import type { HistoryEntry } from "../utils/parse.ts";
 
 export async function ingestHistory(db: Database): Promise<number> {
-  let text: string;
-  try { text = await Bun.file(HISTORY_FILE).text(); } catch { return 0; }
-  if (!text.trim()) return 0;
+  let bytes: Uint8Array;
+  try { bytes = await Bun.file(HISTORY_FILE).bytes(); } catch { return 0; }
+  if (bytes.length === 0) return 0;
 
-  // Native JSONL parser (SIMD-accelerated C++ parser)
-  const result = Bun.JSONL.parseChunk(text);
+  const result = Bun.JSONL.parseChunk(bytes);
   const entries = result.values as HistoryEntry[];
   if (entries.length === 0) return 0;
 

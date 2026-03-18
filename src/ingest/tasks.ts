@@ -15,20 +15,10 @@ interface RawTask {
   metadata?: { _internal?: boolean; [key: string]: unknown };
 }
 
-export async function ingestTasks(db: Database): Promise<number> {
-  if (!dirExists(TASKS_DIR)) return 0;
+async function readTaskFiles(): Promise<{ suiteId: string; task: RawTask }[]> {
+  const suiteDirNames = listDirs(TASKS_DIR);
+  const results: { suiteId: string; task: RawTask }[] = [];
 
-  const insert = db.query(`
-    INSERT OR REPLACE INTO tasks (id, suite_id, subject, description, status, owner, blocks, blocked_by, is_internal)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  let count = 0;
-  let suiteDirNames: string[];
-  suiteDirNames = listDirs(TASKS_DIR);
-
-  // Phase 1: Read all task files async before transaction
-  const taskData: { suiteId: string; file: string; task: RawTask }[] = [];
   for (const raw of suiteDirNames) {
     const suiteId = raw.replace(/\/$/, "");
     const suitePath = TASKS_DIR + "/" + suiteId;
@@ -43,28 +33,37 @@ export async function ingestTasks(db: Database): Promise<number> {
 
     for (const file of files) {
       try {
-        const filePath = suitePath + "/" + file;
-        const text = await Bun.file(filePath).text();
+        const text = await Bun.file(suitePath + "/" + file).text();
         const task = safeParseJson<RawTask>(text);
-        if (!task) continue;
-        taskData.push({ suiteId, file, task });
+        if (task) results.push({ suiteId, task });
       } catch (e) {
         console.error(`Failed to read task ${file} in ${suiteId}:`, e);
       }
     }
   }
 
-  // Phase 2: Insert in transaction with pre-loaded data
-  const tx = db.transaction(() => {
+  return results;
+}
+
+export async function ingestTasks(db: Database): Promise<number> {
+  if (!dirExists(TASKS_DIR)) return 0;
+
+  const taskData = await readTaskFiles();
+  if (taskData.length === 0) return 0;
+
+  const insert = db.query(`
+    INSERT OR REPLACE INTO tasks (id, suite_id, subject, description, status, owner, blocks, blocked_by, is_internal)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  let count = 0;
+  db.transaction(() => {
     for (const { suiteId, task } of taskData) {
       try {
         insert.run(
-          String(task.id),
-          suiteId,
-          task.subject ?? null,
-          task.description ?? null,
-          task.status ?? "pending",
-          task.owner ?? null,
+          String(task.id), suiteId,
+          task.subject ?? null, task.description ?? null,
+          task.status ?? "pending", task.owner ?? null,
           task.blocks ? JSON.stringify(task.blocks) : null,
           task.blockedBy ? JSON.stringify(task.blockedBy) : null,
           task.metadata?._internal ? 1 : 0,
@@ -74,8 +73,7 @@ export async function ingestTasks(db: Database): Promise<number> {
         console.error(`Failed to ingest task ${task.id} in ${suiteId}:`, e);
       }
     }
-  });
+  })();
 
-  tx();
   return count;
 }
