@@ -122,6 +122,27 @@ export async function ingestStats(db: Database): Promise<number> {
     tx();
   }
 
+  // Phase 2b: Compute file-history and paste-cache stats
+  try {
+    const fs = require("fs");
+    const fhDir = process.env.HOME + "/.claude/file-history/";
+    const pcDir = process.env.HOME + "/.claude/paste-cache/";
+    const insertMeta = db.query(`INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)`);
+    if (fs.existsSync(fhDir)) {
+      const sessions = fs.readdirSync(fhDir);
+      let totalVersions = 0;
+      for (const s of sessions) {
+        try { totalVersions += fs.readdirSync(fhDir + s).length; } catch {}
+      }
+      insertMeta.run("file_history_sessions", String(sessions.length));
+      insertMeta.run("file_history_versions", String(totalVersions));
+    }
+    if (fs.existsSync(pcDir)) {
+      const files = fs.readdirSync(pcDir);
+      insertMeta.run("paste_cache_files", String(files.length));
+    }
+  } catch { /* optional */ }
+
   // Phase 3: Import session facets from ~/.claude/usage-data/facets/
   try {
     const facetFiles = [...new Glob("*.json").scanSync(FACETS_DIR)];
