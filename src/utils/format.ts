@@ -4,11 +4,9 @@ const esc = (code: string) => (s: string) => `\x1b[${code}m${s}\x1b[0m`;
 
 export const dim = esc("2");
 export const bold = esc("1");
-export const green = esc("32");
+const green = esc("32");
 export const yellow = esc("33");
-export const red = esc("31");
 export const cyan = esc("36");
-export const gray = esc("90");
 
 // ── Formatting ──────────────────────────────────────────────────────
 
@@ -16,7 +14,7 @@ export function header(title: string): string {
   return `\x1b[1;4m${title}\x1b[0m`;
 }
 
-export interface TableOpts {
+interface TableOpts {
   /** Minimum column widths */
   minWidths?: number[];
   /** Right-align columns by index */
@@ -69,17 +67,9 @@ export function table(rows: string[][], opts: TableOpts = {}): string {
   return lines.join("\n");
 }
 
-export function indent(s: string, level = 1): string {
-  const prefix = "  ".repeat(level);
-  return s
-    .split("\n")
-    .map((line) => prefix + line)
-    .join("\n");
-}
-
 export function truncate(s: string, maxLen: number): string {
-  if (s.length <= maxLen) return s;
-  return s.slice(0, maxLen - 1) + "\u2026";
+  if (Bun.stringWidth(s) <= maxLen) return s;
+  return Bun.sliceAnsi(s, 0, maxLen, "\u2026");
 }
 
 export function statusBadge(
@@ -97,7 +87,4 @@ export function statusBadge(
   }
 }
 
-export function separator(): string {
-  return dim("-".repeat(60));
-}
 

@@ -1,5 +1,8 @@
 import type { Database } from "bun:sqlite";
 
+export interface Row { [key: string]: unknown }
+export type QueryFn = (sql: string, ...p: (string | number)[]) => Row[];
+
 export interface Session {
   id: string;
   project_path: string | null;
@@ -18,7 +21,7 @@ export interface Session {
   lines_removed: number | null;
 }
 
-export interface HistoryMessage {
+interface HistoryMessage {
   id: number;
   session_id: string | null;
   project_path: string | null;
@@ -27,14 +30,7 @@ export interface HistoryMessage {
   has_paste: number;
 }
 
-export interface DailyStats {
-  date: string;
-  message_count: number | null;
-  session_count: number | null;
-  tool_call_count: number | null;
-}
-
-export interface Project {
+interface Project {
   path: string;
   name: string | null;
   type: string | null;
@@ -59,7 +55,7 @@ export interface Task {
   is_internal: number;
 }
 
-export interface ProjectWithGitState extends Project {
+interface ProjectWithGitState extends Project {
   branch_count: number | null;
   stash_count: number | null;
   dirty_file_count: number | null;
@@ -68,17 +64,7 @@ export interface ProjectWithGitState extends Project {
   last_captured: string | null;
 }
 
-export interface Commit {
-  hash: string;
-  project_path: string | null;
-  author: string | null;
-  date: string | null;
-  message: string | null;
-  commit_type: string | null;
-  commit_scope: string | null;
-}
-
-export interface SessionSummary {
+interface SessionSummary {
   project_path: string;
   session_count: number;
   total_duration: number | null;
@@ -86,7 +72,7 @@ export interface SessionSummary {
   total_lines_removed: number | null;
 }
 
-export interface HistorySearchResult extends HistoryMessage {
+interface HistorySearchResult extends HistoryMessage {
   rank: number;
 }
 
@@ -100,15 +86,6 @@ export function sessionsByDateRange(
       "SELECT * FROM sessions WHERE started_at >= ? AND started_at <= ? ORDER BY started_at",
     )
     .all(startMs, endMs) as Session[];
-}
-
-export function sessionsByProject(
-  db: Database,
-  projectPath: string,
-): Session[] {
-  return db
-    .query("SELECT * FROM sessions WHERE project_path = ? ORDER BY started_at")
-    .all(projectPath) as Session[];
 }
 
 export function openTasks(db: Database): Task[] {
@@ -125,17 +102,6 @@ export function completedTasks(db: Database): Task[] {
     .all() as Task[];
 }
 
-export function projectsWithGitState(db: Database): ProjectWithGitState[] {
-  return db
-    .query(
-      `SELECT p.*, g.branch_count, g.stash_count, g.dirty_file_count,
-              g.uncommitted_changes, g.current_branch, g.last_captured
-       FROM projects p
-       LEFT JOIN project_git_state g ON p.path = g.project_path`,
-    )
-    .all() as ProjectWithGitState[];
-}
-
 export function dirtyProjects(db: Database): ProjectWithGitState[] {
   return db
     .query(
@@ -146,6 +112,16 @@ export function dirtyProjects(db: Database): ProjectWithGitState[] {
        WHERE g.dirty_file_count > 0`,
     )
     .all() as ProjectWithGitState[];
+}
+
+interface Commit {
+  hash: string;
+  project_path: string | null;
+  author: string | null;
+  date: string | null;
+  message: string | null;
+  commit_type: string | null;
+  commit_scope: string | null;
 }
 
 export function commitsInRange(
@@ -160,15 +136,8 @@ export function commitsInRange(
     .all(startDate, endDate) as Commit[];
 }
 
-export function dailyStatsForDate(
-  db: Database,
-  date: string,
-): DailyStats | null {
-  return (
-    (db.query("SELECT * FROM daily_stats WHERE date = ?").get(date) as DailyStats | null) ??
-    null
-  );
-}
+/** Quote a string for FTS5 MATCH: wraps in double quotes, strips internal quotes. */
+export const safeFts = (q: string): string => `"${q.replace(/"/g, "")}"`;
 
 export function searchHistory(
   db: Database,
@@ -184,7 +153,7 @@ export function searchHistory(
        ORDER BY f.rank
        LIMIT ?`,
     )
-    .all(query, limit) as HistorySearchResult[];
+    .all(safeFts(query), limit) as HistorySearchResult[];
 }
 
 const ALLOWED_PREFIXES = ["SELECT", "PRAGMA", "EXPLAIN"];

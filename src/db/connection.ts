@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { Database, constants } from "bun:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
 import { DATA_DIR, DB_PATH } from "../utils/paths.ts";
 
@@ -8,8 +8,8 @@ export function getDb(): Database {
   if (_db) return _db;
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
   _db = new Database(DB_PATH, { strict: true });
+  _db.fileControl(constants.SQLITE_FCNTL_PERSIST_WAL, 0);
   _db.exec(`
-    PRAGMA page_size = 8192;
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
     PRAGMA busy_timeout = 5000;
@@ -19,17 +19,8 @@ export function getDb(): Database {
     PRAGMA foreign_keys = ON;
     PRAGMA auto_vacuum = INCREMENTAL;
     PRAGMA wal_autocheckpoint = 1000;
-    PRAGMA optimize;
   `);
   return _db;
-}
-
-export function closeDb(): void {
-  if (_db) {
-    _db.exec("PRAGMA optimize");
-    _db.close();
-  }
-  _db = null;
 }
 
 export function dbExists(): boolean {

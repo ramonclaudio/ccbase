@@ -1,15 +1,6 @@
 #!/usr/bin/env bun
-import { getDb, dbExists } from "./db/connection.ts";
+import { dbExists, getDb } from "./db/connection.ts";
 import { createSchema } from "./db/schema.ts";
-import { logCommand } from "./commands/log.ts";
-import { tasksCommand } from "./commands/tasks.ts";
-import { wipCommand } from "./commands/wip.ts";
-import { progressCommand } from "./commands/progress.ts";
-import { sqlCommand } from "./commands/sql.ts";
-import { searchCommand } from "./commands/search.ts";
-import { ingestCommand } from "./commands/ingest.ts";
-import { exportHtmlCommand } from "./commands/export-html.ts";
-import { serveCommand } from "./commands/serve.ts";
 
 const [, , command, ...args] = Bun.argv;
 
@@ -24,8 +15,13 @@ async function ensureDb() {
   }
 }
 
+declare const __VERSION__: string;
+declare const __BUILD_TIME__: number;
+
 function printHelp() {
-  console.log(`claude-analyzer - Task tracker powered by Claude Code session data
+  const version = typeof __VERSION__ !== "undefined" ? __VERSION__ : "dev";
+  const built = typeof __BUILD_TIME__ !== "undefined" ? new Date(__BUILD_TIME__ * 1000).toLocaleDateString() : "";
+  console.log(`claude-analyzer ${version}${built ? ` (built ${built})` : ""} - Task tracker powered by Claude Code session data
 
 Commands:
   log [--yesterday|--week|DATE]   What did I do? Sessions by date
@@ -37,6 +33,8 @@ Commands:
   serve [port]                     Live dashboard on localhost
   export [path]                   Generate static HTML dashboard
   ingest [--force]                Parse Claude Code data into database
+  ingest --cron [schedule]        Schedule auto-ingest (default: hourly)
+  ingest --no-cron                Remove auto-ingest schedule
 
 Run 'ingest' first, or any command will auto-ingest on first use.`);
 }
@@ -45,38 +43,38 @@ async function main() {
   switch (command) {
     case "log":
       await ensureDb();
-      logCommand(args);
+      (await import("./commands/log.ts")).logCommand(args);
       break;
     case "tasks":
       await ensureDb();
-      tasksCommand(args);
+      (await import("./commands/tasks.ts")).tasksCommand(args);
       break;
     case "wip":
       await ensureDb();
-      await wipCommand(args);
+      await (await import("./commands/wip.ts")).wipCommand(args);
       break;
     case "progress":
       await ensureDb();
-      progressCommand(args);
+      (await import("./commands/progress.ts")).progressCommand(args);
       break;
     case "search":
       await ensureDb();
-      searchCommand(args);
+      (await import("./commands/search.ts")).searchCommand(args);
       break;
     case "sql":
       await ensureDb();
-      sqlCommand(args);
+      (await import("./commands/sql.ts")).sqlCommand(args);
       break;
     case "serve":
       await ensureDb();
-      await serveCommand(args);
+      (await import("./commands/serve.ts")).serveCommand(args);
       break;
     case "export":
       await ensureDb();
-      await exportHtmlCommand(args);
+      await (await import("./commands/export-html.ts")).exportHtmlCommand(args);
       break;
     case "ingest":
-      await ingestCommand(args);
+      (await import("./commands/ingest.ts")).ingestCommand(args);
       break;
     case undefined:
     case "--help":

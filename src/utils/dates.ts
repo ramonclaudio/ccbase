@@ -41,18 +41,6 @@ export function epochMsToTime(ms: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function epochMsToIso(ms: number): string {
-  return new Date(ms).toISOString();
-}
-
-export function isoToEpochMs(iso: string): number {
-  return new Date(iso).getTime();
-}
-
-export function durationMinutes(startMs: number, endMs: number): number {
-  return Math.round((endMs - startMs) / 60_000);
-}
-
 export function formatDuration(minutes: number): string {
   if (minutes < 1) return "< 1m";
   if (minutes < 60) return `${minutes}m`;
@@ -73,39 +61,14 @@ export function billingBlockEnd(ms: number): number {
   return billingBlockStart(ms) + FIVE_HOURS;
 }
 
-/**
- * Human-friendly relative date.
- * Input: YYYY-MM-DD string.
- */
-export function relativeDate(dateStr: string): string {
-  const t = today();
-  if (dateStr === t) return "today";
+/** Local timezone offset in seconds (east of UTC is positive). */
+export const TZ_OFFSET_SEC = new Date().getTimezoneOffset() * -60;
 
-  const y = yesterday();
-  if (dateStr === y) return "yesterday";
-
-  const target = new Date(dateStr + "T00:00:00");
-  const now = new Date(t + "T00:00:00");
-  const diffDays = Math.round(
-    (now.getTime() - target.getTime()) / 86_400_000,
-  );
-
-  if (diffDays > 0 && diffDays <= 14) return `${diffDays} days ago`;
-
-  // Format as "Mar 12"
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${months[target.getMonth()]} ${target.getDate()}`;
+export function dateToMs(dateStr: string): number {
+  return new Date(dateStr + "T00:00:00").getTime();
 }
+
+export function endOfDayMs(dateStr: string): number {
+  return new Date(dateStr + "T23:59:59.999").getTime();
+}
+
