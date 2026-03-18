@@ -101,7 +101,9 @@ function parseRecord(d: Record<string, unknown>): ParsedRecord | null {
   }
 
   let content: string | null = null;
-  if (d.data) {
+  if (rawType === "pr-link") {
+    content = JSON.stringify({ prNumber: d.prNumber, prUrl: d.prUrl, prRepository: d.prRepository });
+  } else if (d.data) {
     content = JSON.stringify(d.data).slice(0, 2000);
   } else if (d.snapshot) {
     content = `[snapshot: ${d.messageId || "?"}]`;
@@ -171,6 +173,15 @@ export async function ingestConversations(db: Database): Promise<number> {
   // Backfill session slugs from conversation data
   try {
     db.exec(`UPDATE sessions SET slug = (SELECT slug FROM conversation_messages cm WHERE cm.session_id = sessions.id AND cm.slug IS NOT NULL LIMIT 1) WHERE slug IS NULL`);
+  } catch { /* ignore */ }
+
+  // Backfill PR data from pr-link records in conversations
+  try {
+    db.exec(`UPDATE sessions SET
+      pr_number = COALESCE(pr_number, (SELECT json_extract(cm.content, '$.prNumber') FROM conversation_messages cm WHERE cm.session_id = sessions.id AND cm.type = 'pr-link' AND cm.content IS NOT NULL LIMIT 1)),
+      pr_url = COALESCE(pr_url, (SELECT json_extract(cm.content, '$.prUrl') FROM conversation_messages cm WHERE cm.session_id = sessions.id AND cm.type = 'pr-link' AND cm.content IS NOT NULL LIMIT 1)),
+      pr_repository = COALESCE(pr_repository, (SELECT json_extract(cm.content, '$.prRepository') FROM conversation_messages cm WHERE cm.session_id = sessions.id AND cm.type = 'pr-link' AND cm.content IS NOT NULL LIMIT 1))
+    WHERE pr_url IS NULL AND id IN (SELECT DISTINCT session_id FROM conversation_messages WHERE type = 'pr-link' AND content IS NOT NULL)`);
   } catch { /* ignore */ }
 
   // Rebuild FTS
