@@ -6,7 +6,7 @@ export function isGitRepo(dir: string): boolean {
   return existsSync(dir + "/.git");
 }
 
-export interface GitState {
+interface GitState {
   dirty: number;
   stashCount: number;
   branchCount: number;

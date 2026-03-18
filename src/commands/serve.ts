@@ -60,7 +60,7 @@ interface HistoryAgg { paste_rate: number; rewinds: number }
 interface CountRow { n: number }
 
 const PAGES_DIR = import.meta.dir + "/../pages";
-const CORS = { "access-control-allow-origin": "*" } as const;
+const CORS = { "access-control-allow-origin": "http://localhost:3000" } as const;
 const STRIP_XML_RE = /<(thinking|tool_use|tool_result)[^>]*>[\s\S]*?<\/\1>/g;
 
 const SQL_CONV_AGG = `SELECT
@@ -93,8 +93,8 @@ const SQL_SESS_AGG = `SELECT
 FROM sessions`;
 
 const SQL_HIST_AGG = `SELECT
-  ROUND(SUM(has_paste)*100.0/COUNT(*),1) as paste_rate,
-  SUM(CASE WHEN display LIKE '%/rewind%' THEN 1 ELSE 0 END) as rewinds
+  COALESCE(ROUND(SUM(has_paste)*100.0/NULLIF(COUNT(*),0),1), 0) as paste_rate,
+  COALESCE(SUM(CASE WHEN display LIKE '%/rewind%' THEN 1 ELSE 0 END), 0) as rewinds
 FROM history_messages`;
 
 const statsCache = { data: null as Record<string, unknown> | null, ts: 0 };
@@ -107,7 +107,7 @@ function getStats(q: QueryFn): Record<string, unknown> {
   const sess = q(SQL_SESS_AGG)[0] as SessionAgg;
   const hist = q(SQL_HIST_AGG)[0] as HistoryAgg;
 
-  const totalPromptTokens = cm.cache_read_tokens + cm.total_input;
+  const totalPromptTokens = (cm.cache_read_tokens ?? 0) + (cm.total_input ?? 0);
   const cacheHitPct = totalPromptTokens > 0
     ? Math.round(cm.cache_read_tokens * 1000 / totalPromptTokens) / 10
     : 0;
@@ -124,7 +124,7 @@ function getStats(q: QueryFn): Record<string, unknown> {
     projects: q(`SELECT COUNT(*) as n FROM projects`)[0],
     tasks: q(`SELECT status,COUNT(*) as n FROM tasks GROUP BY status`),
     planValue: { n: cm.plan_value },
-    totalTokens: { n: cm.inp + cm.outp },
+    totalTokens: { n: (cm.inp ?? 0) + (cm.outp ?? 0) },
     totalLines: { n: sess.total_lines },
     totalMinutes: { n: sess.total_minutes },
     toolCalls: { n: cm.tool_calls },
@@ -150,7 +150,8 @@ const streaksCache = { data: null as Record<string, unknown> | null, ts: 0 };
 function isConsecutiveDay(a: string, b: string): boolean {
   const d = new Date(a + "T12:00:00");
   d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10) === b;
+  const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  return `${y}-${m < 10 ? "0" + m : m}-${day < 10 ? "0" + day : day}` === b;
 }
 
 function computeStreaks(q: QueryFn): Record<string, unknown> {
@@ -189,6 +190,7 @@ export function serveCommand(args: string[]): void {
 
   Bun.serve({
     port,
+    hostname: "127.0.0.1",
     development: true,
     routes: {
       "/": Bun.file(PAGES_DIR + "/dashboard.html"),

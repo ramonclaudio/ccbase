@@ -133,6 +133,7 @@ export function logCommand(args: string[]): void {
   }
 
   const days = groupByDayAndProject(sessions);
+  if (days.length === 0) { console.log(dim("No sessions with timestamps.")); return; }
 
   if (isWeek || days.length > 1) {
     for (const day of days) {

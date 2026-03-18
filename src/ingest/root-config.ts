@@ -31,7 +31,7 @@ export async function ingestRootConfig(db: Database): Promise<number> {
           project.lastLinesAdded ?? null,
           project.lastLinesRemoved ?? null,
           project.lastAPIDuration ?? null,
-          (project as Record<string, unknown>).lastToolDuration as number ?? null,
+          (project as Record<string, unknown>).lastToolDuration ?? null,
           project.lastTotalCacheReadInputTokens ?? null,
           project.lastTotalCacheCreationInputTokens ?? null,
           project.lastTotalWebSearchRequests ?? null,

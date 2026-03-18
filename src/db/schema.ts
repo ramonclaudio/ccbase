@@ -163,6 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_conv_tool ON conversation_messages(tool_name);
 CREATE INDEX IF NOT EXISTS idx_conv_agent ON conversation_messages(agent_id);
 CREATE INDEX IF NOT EXISTS idx_conv_session_type ON conversation_messages(session_id, type);
 CREATE INDEX IF NOT EXISTS idx_conv_session_role ON conversation_messages(session_id, role);
+CREATE INDEX IF NOT EXISTS idx_conv_subtype ON conversation_messages(subtype);
 CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(content);
 
 CREATE TABLE IF NOT EXISTS model_usage (
