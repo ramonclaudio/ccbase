@@ -496,12 +496,11 @@ async function load(){
 
   // Cache efficiency (fast query, render immediately)
   if($("p_cache")&&cacheStats){
-    const sf3=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
     $("p_cache").innerHTML='<div class="stats" style="margin:0;gap:12px">'+[
       [(cacheStats.cache_hit_pct||0)+"%","hit rate"],
       [tok(cacheStats.total_cache_hits||0),"cached read"],
       [money(cacheStats.estimated_savings_usd||0),"saved"]
-    ].map(sf3).join("")+'</div>';
+    ].map(sf).join("")+'</div>';
   }
 
   // MCP usage (fast query, render immediately)
@@ -515,7 +514,6 @@ async function load(){
 
   // Stats bar: cache hit % (available immediately)
   if(cacheStats){
-    const sf6=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
     $("stats2").innerHTML+=sf6([(cacheStats.cache_hit_pct||0)+"%","cache hit"]);
   }
 
@@ -530,25 +528,22 @@ async function load(){
       }).join("");
     }
     if($("p_turnlat")&&turnLat){
-      const sf2=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
       $("p_turnlat").innerHTML='<div class="stats" style="margin:0;gap:12px">'+[
         [Math.round(turnLat.avg||0)+"ms","AVG"],[Math.round(turnLat.p50||0)+"ms","P50"],[Math.round(turnLat.p95||0)+"ms","P95"]
-      ].map(sf2).join("")+'</div>';
+      ].map(sf).join("")+'</div>';
       $("stats2").innerHTML+='<div class="stat"><div class="n">'+Math.round(turnLat.avg||0)+'ms</div><div class="l">turn latency</div></div>';
     }
     donut($("c_tiers"),serviceTiers?.length?serviceTiers:[],"service_tier");
     if($("p_web")&&webUsage){
-      const sf4=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
       $("p_web").innerHTML='<div class="stats" style="margin:0;gap:12px">'+[
         [(webUsage.searches||0).toLocaleString(),"total searches"],[(webUsage.fetches||0).toLocaleString(),"fetches"],[(webUsage.sessions_with_web||0),"sessions"]
-      ].map(sf4).join("")+'</div>';
+      ].map(sf).join("")+'</div>';
     }
     if($("p_mswitches")&&modelSwitches){
       const total=Array.isArray(modelSwitches)?modelSwitches.length:0;
-      const sf5=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
       $("p_mswitches").innerHTML='<div class="stats" style="margin:0;gap:12px">'+[
         [total.toLocaleString(),"sessions"]
-      ].map(sf5).join("")+'</div>';
+      ].map(sf).join("")+'</div>';
     }
   });
 
@@ -584,7 +579,6 @@ async function load(){
     }
     // Add app meta to stats bar
     if(appMeta&&$("stats2")){
-      const sf=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
       const extra=[];
       if(appMeta.num_startups)extra.push([appMeta.num_startups.toLocaleString(),"startups"]);
       if(appMeta.first_start_time)extra.push([new Date(appMeta.first_start_time).toLocaleDateString(),"first use"]);
@@ -609,16 +603,12 @@ async function load(){
     }
   });
 
-  const planData=await F("/api/plan-mode");
+  const[planData,scData,pasteData,staleness]=await Promise.all([F("/api/plan-mode"),F("/api/sidechain-stats"),F("/api/paste-stats"),F("/api/project-staleness")]);
   if($("p_plans"))$("p_plans").innerHTML=planData.length?'<div style="color:var(--dim);font-size:10px;margin-bottom:4px">'+planData.length+' sessions used plan mode ('+planData.reduce((s,p)=>s+p.n,0)+' total)</div>'+planData.slice(0,15).map(p=>'<div class="sn" onclick="window.open(\'/chat?s='+p.session_id+'\',\'_blank\')"><span class="pj" style="width:70px">'+e(p.session_id.slice(0,8))+'...</span><span class="pr">'+p.n+' invocations</span></div>').join(""):'<div style="color:var(--dim);font-size:11px">no plan mode usage</div>';
 
-  const scData=await F("/api/sidechain-stats");
   if($("p_sidechain"))$("p_sidechain").innerHTML='<div style="font-size:11px;margin-bottom:6px"><span style="color:var(--accent);font-weight:700">'+scData.total.n.toLocaleString()+'</span> sidechain messages from <span style="color:var(--blue);font-weight:700">'+scData.agents.n+'</span> subagents</div>'+(scData.byAgent||[]).slice(0,8).map(a=>{const amax2=Math.max(...(scData.byAgent||[]).map(x=>x.msgs),1);return '<div class="br"><span class="nm" style="width:70px">'+e(a.agent_id?.slice(0,8))+'</span><span class="b" style="width:'+Math.round(a.msgs/amax2*100)+'px;background:var(--accent)"></span><span class="v">'+a.msgs+'</span></div>';}).join("");
 
-  if($("p_misc")){const pasteData=await F("/api/paste-stats");
-  $("p_misc").innerHTML='<div style="font-size:12px;line-height:2"><div><span style="color:var(--blue);font-weight:700">'+(stats.pasteRate?.n||0)+'%</span> paste rate <span style="color:var(--dim)">('+pasteData.with_paste+'/'+pasteData.total+')</span></div><div><span style="color:var(--purple);font-weight:700">'+(stats.rewinds?.n||0)+'</span> rewinds</div><div><span style="color:var(--accent);font-weight:700">'+streaks.current+'</span>d streak \xb7 <span style="color:var(--accent);font-weight:700">'+streaks.longest+'</span>d longest</div></div>';}
-
-  const staleness=await F("/api/project-staleness");
+  if($("p_misc"))$("p_misc").innerHTML='<div style="font-size:12px;line-height:2"><div><span style="color:var(--blue);font-weight:700">'+(stats.pasteRate?.n||0)+'%</span> paste rate <span style="color:var(--dim)">('+pasteData.with_paste+'/'+pasteData.total+')</span></div><div><span style="color:var(--purple);font-weight:700">'+(stats.rewinds?.n||0)+'</span> rewinds</div><div><span style="color:var(--accent);font-weight:700">'+streaks.current+'</span>d streak \xb7 <span style="color:var(--accent);font-weight:700">'+streaks.longest+'</span>d longest</div></div>';
   if($("health"))$("health").innerHTML=staleness.map(p=>{const lastDate=p.last_commit_date||p.last_session_date;const daysAgo=lastDate?Math.round((Date.now()-new Date(lastDate).getTime())/86400000):999;const staleColor=daysAgo<7?"var(--green)":daysAgo<30?"var(--yellow)":daysAgo<90?"var(--red)":"var(--faint)";const staleText=daysAgo<1?"today":daysAgo<7?daysAgo+"d ago":daysAgo<30?Math.round(daysAgo/7)+"w ago":daysAgo<365?Math.round(daysAgo/30)+"mo ago":"1y+";const info=[];if(p.total_commits)info.push(p.total_commits+"c");if(p.total_sessions)info.push(p.total_sessions+"s");return '<div class="proj-row" onclick="setProj(\''+p.path.replace(/'/g,"\\'")+'\')"><span class="nm">'+e(p.name)+'</span><span class="tp">'+p.type+'</span><span style="color:'+staleColor+';font-size:10px;margin-left:auto">'+staleText+'</span><span class="info">'+info.join(" \xb7 ")+'</span></div>';}).join("");
 }
 load();

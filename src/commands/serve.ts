@@ -78,7 +78,6 @@ const SQL_CONV_AGG = `SELECT
   ROUND(SUM(CASE
     WHEN model LIKE '%opus-4-6%' THEN COALESCE(input_tokens,0)/1e6*5+COALESCE(output_tokens,0)/1e6*25+COALESCE(cache_read_tokens,0)/1e6*0.5+COALESCE(cache_creation_tokens,0)/1e6*6.25
     WHEN model LIKE '%opus%' THEN COALESCE(input_tokens,0)/1e6*15+COALESCE(output_tokens,0)/1e6*75+COALESCE(cache_read_tokens,0)/1e6*1.5+COALESCE(cache_creation_tokens,0)/1e6*18.75
-    WHEN model LIKE '%sonnet-4-6%' THEN COALESCE(input_tokens,0)/1e6*3+COALESCE(output_tokens,0)/1e6*15+COALESCE(cache_read_tokens,0)/1e6*0.3+COALESCE(cache_creation_tokens,0)/1e6*3.75
     WHEN model LIKE '%sonnet%' THEN COALESCE(input_tokens,0)/1e6*3+COALESCE(output_tokens,0)/1e6*15+COALESCE(cache_read_tokens,0)/1e6*0.3+COALESCE(cache_creation_tokens,0)/1e6*3.75
     WHEN model LIKE '%haiku%' THEN COALESCE(input_tokens,0)/1e6*1+COALESCE(output_tokens,0)/1e6*5+COALESCE(cache_read_tokens,0)/1e6*0.1+COALESCE(cache_creation_tokens,0)/1e6*1.25
     ELSE COALESCE(input_tokens,0)/1e6*3+COALESCE(output_tokens,0)/1e6*15
@@ -239,26 +238,16 @@ export function serveCommand(args: string[]): void {
       "/api/plan-mode": () => Response.json(q(`SELECT session_id,COUNT(*) as n FROM conversation_messages WHERE tool_name='EnterPlanMode' GROUP BY session_id ORDER BY n DESC`), { headers: CORS }),
 
       "/api/tool-durations": () => {
-        // Use LEAD window function to get next message timestamp, compute duration in JS
-        const rows = q(`SELECT tool_name, timestamp,
-          LEAD(timestamp) OVER (PARTITION BY session_id ORDER BY rowid) as next_ts
-          FROM conversation_messages
-          WHERE tool_name IS NOT NULL OR (role = 'user' AND content LIKE '<tool_result%')
-          ORDER BY session_id, rowid`) as { tool_name: string | null; timestamp: string; next_ts: string | null }[];
-        const durations: Record<string, number[]> = {};
-        for (const r of rows) {
-          if (!r.tool_name || !r.next_ts) continue;
-          const dur = new Date(r.next_ts).getTime() - new Date(r.timestamp).getTime();
-          if (dur > 0 && dur < 300000) {
-            (durations[r.tool_name] ??= []).push(dur);
-          }
-        }
-        const result = Object.entries(durations).map(([tool_name, durs]) => ({
-          tool_name, calls: durs.length,
-          avg_ms: Math.round(durs.reduce((s, v) => s + v, 0) / durs.length),
-          max_ms: Math.max(...durs), min_ms: Math.min(...durs),
-        })).sort((a, b) => b.avg_ms - a.avg_ms).slice(0, 20);
-        return Response.json(result, { headers: CORS });
+        const rows = q(`SELECT tool_name, COUNT(*) as calls,
+          ROUND(AVG(dur)) as avg_ms, ROUND(MAX(dur)) as max_ms, ROUND(MIN(dur)) as min_ms
+          FROM (
+            SELECT tool_name,
+              ROUND((julianday(LEAD(timestamp) OVER (PARTITION BY session_id ORDER BY rowid)) - julianday(timestamp)) * 86400000) as dur
+            FROM conversation_messages
+            WHERE tool_name IS NOT NULL OR (role = 'user' AND content LIKE '<tool_result%')
+          ) WHERE tool_name IS NOT NULL AND dur > 0 AND dur < 300000
+          GROUP BY tool_name ORDER BY avg_ms DESC LIMIT 20`);
+        return Response.json(rows, { headers: CORS });
       },
 
       "/api/mcp-usage": () => {
@@ -386,11 +375,17 @@ export function serveCommand(args: string[]): void {
         return Response.json(q(`SELECT gr.repo, gr.local_path, p.name as project_name, p.total_sessions, p.total_commits FROM github_repos gr LEFT JOIN projects p ON p.path = gr.local_path ORDER BY p.total_sessions DESC`), { headers: CORS });
       },
       "/api/facet-summary": () => {
-        const outcomes = q(`SELECT outcome, COUNT(*) as n FROM session_facets WHERE outcome IS NOT NULL GROUP BY outcome ORDER BY n DESC`);
-        const helpfulness = q(`SELECT claude_helpfulness, COUNT(*) as n FROM session_facets WHERE claude_helpfulness IS NOT NULL GROUP BY claude_helpfulness ORDER BY n DESC`);
-        const types = q(`SELECT session_type, COUNT(*) as n FROM session_facets WHERE session_type IS NOT NULL GROUP BY session_type ORDER BY n DESC`);
-        const total = q(`SELECT COUNT(*) as n FROM session_facets`)[0] as { n: number };
-        return Response.json({ total: total.n, outcomes, helpfulness, types }, { headers: CORS });
+        const all = q(`SELECT outcome, claude_helpfulness, session_type FROM session_facets`) as { outcome: string; claude_helpfulness: string; session_type: string }[];
+        const outcomes: Record<string, number> = {};
+        const helpfulness: Record<string, number> = {};
+        const types: Record<string, number> = {};
+        for (const r of all) {
+          if (r.outcome) outcomes[r.outcome] = (outcomes[r.outcome] || 0) + 1;
+          if (r.claude_helpfulness) helpfulness[r.claude_helpfulness] = (helpfulness[r.claude_helpfulness] || 0) + 1;
+          if (r.session_type) types[r.session_type] = (types[r.session_type] || 0) + 1;
+        }
+        const toArr = (m: Record<string, number>, k: string) => Object.entries(m).map(([v, n]) => ({ [k]: v, n })).sort((a, b) => b.n - a.n);
+        return Response.json({ total: all.length, outcomes: toArr(outcomes, "outcome"), helpfulness: toArr(helpfulness, "claude_helpfulness"), types: toArr(types, "session_type") }, { headers: CORS });
       },
       "/api/conversation-stats": () => {
         const s = getStats(q);
