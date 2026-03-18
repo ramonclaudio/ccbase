@@ -1,6 +1,7 @@
 import { Glob } from "bun";
 import type { Database } from "bun:sqlite";
-import { PROJECTS_DIR, dirExists, listDirs, decodeProjectPath } from "../utils/paths.ts";
+import { existsSync } from "node:fs";
+import { PROJECTS_DIR, listDirs, decodeProjectPath } from "../utils/paths.ts";
 import { safeParseJson, type SessionsIndexFile } from "../utils/parse.ts";
 
 type IndexData =
@@ -127,7 +128,7 @@ function insertIndexEntry(
 }
 
 export async function ingestSessionsIndex(db: Database): Promise<number> {
-  if (!dirExists(PROJECTS_DIR)) return 0;
+  if (!existsSync(PROJECTS_DIR)) return 0;
 
   const insertSession = db.query(`
     INSERT OR REPLACE INTO sessions

@@ -218,7 +218,10 @@ export async function exportHtmlCommand(args: string[]): Promise<void> {
 
   const projects = rawProjects.map(r => ({ name: projectName(r.project_path as string), sessions: r.n as number, mins: (r.mins as number) || 0 }));
   const tasks = { pending: 0, in_progress: 0, completed: 0 };
-  for (const t of rawTasks) tasks[(t.status as string) as keyof typeof tasks] = t.n as number;
+  for (const t of rawTasks) {
+    const s = t.status as string;
+    if (s in tasks) tasks[s as keyof typeof tasks] = t.n as number;
+  }
 
   const html = renderDashboard({
     daily, projects, tasks, commits, hourly, topCommitTypes,

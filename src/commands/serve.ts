@@ -66,7 +66,7 @@ interface HistoryAgg { paste_rate: number; rewinds: number }
 interface CountRow { n: number }
 
 const PAGES_DIR = import.meta.dir + "/../pages";
-const CORS = { "access-control-allow-origin": "http://localhost:3000" } as const;
+let CORS = { "access-control-allow-origin": "http://localhost:3000" };
 const STRIP_XML_RE = /<(thinking|tool_use|tool_result)[^>]*>[\s\S]*?<\/\1>/g;
 
 const SQL_CONV_AGG = `SELECT
@@ -191,6 +191,7 @@ function computeStreaks(q: QueryFn): Record<string, unknown> {
 
 export function serveCommand(args: string[]): void {
   const port = parseInt(args.find(a => /^\d+$/.test(a)) || "3000");
+  CORS = { "access-control-allow-origin": `http://localhost:${port}` };
   const db = getDb();
   const q: QueryFn = (sql, ...p) => db.query(sql).all(...p) as Row[];
 

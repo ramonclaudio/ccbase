@@ -1,6 +1,7 @@
 import { Glob } from "bun";
 import type { Database } from "bun:sqlite";
-import { TASKS_DIR, dirExists, listDirs } from "../utils/paths.ts";
+import { existsSync } from "node:fs";
+import { TASKS_DIR, listDirs } from "../utils/paths.ts";
 import { safeParseJson } from "../utils/parse.ts";
 
 interface RawTask {
@@ -46,7 +47,7 @@ async function readTaskFiles(): Promise<{ suiteId: string; task: RawTask }[]> {
 }
 
 export async function ingestTasks(db: Database): Promise<number> {
-  if (!dirExists(TASKS_DIR)) return 0;
+  if (!existsSync(TASKS_DIR)) return 0;
 
   const taskData = await readTaskFiles();
   if (taskData.length === 0) return 0;

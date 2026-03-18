@@ -80,7 +80,3 @@ export function listDirs(cwd: string): string[] {
   } catch { return []; }
 }
 
-/** Check if a directory exists. Single syscall, no subprocess. */
-export function dirExists(path: string): boolean {
-  return existsSync(path);
-}

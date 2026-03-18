@@ -87,8 +87,3 @@ export function statusBadge(
   }
 }
 
-export function printSection<T>(label: string, items: T[], renderRow: (item: T) => string): void {
-  console.log(bold(label));
-  for (const item of items) console.log(`  |-- ${renderRow(item)}`);
-  console.log();
-}

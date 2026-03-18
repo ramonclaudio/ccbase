@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import type { Database } from "bun:sqlite";
-import { DEVELOPER_DIR, dirExists, listDirs } from "../utils/paths.ts";
+import { DEVELOPER_DIR, listDirs } from "../utils/paths.ts";
 import { isGitRepo, gitState, gitRecentCommits } from "../utils/git.ts";
 
 const SKIP_DIRS = new Set(["prompts"]);
@@ -38,7 +38,7 @@ interface ProjectData {
 
 function listProjects(): { path: string; type: string }[] {
   const projects: { path: string; type: string }[] = [];
-  if (!dirExists(DEVELOPER_DIR)) return projects;
+  if (!existsSync(DEVELOPER_DIR)) return projects;
 
   const topLevel = listDirs(DEVELOPER_DIR);
   for (const name of topLevel) {

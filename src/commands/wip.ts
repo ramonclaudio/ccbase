@@ -115,7 +115,7 @@ export async function wipCommand(_args: string[]): Promise<void> {
   if (tasks.length > 0) {
     const pending = tasks.filter((t) => t.status === "pending").length;
     const inProgress = tasks.filter((t) => t.status === "in_progress").length;
-    console.log(`  ${bold("Open Tasks:")} ${pending} pending, ${inProgress} in_progress`);
+    console.log(`  ${bold("Open Tasks:")} ${pending} pending, ${inProgress} wip`);
     console.log();
     hasOutput = true;
   }
