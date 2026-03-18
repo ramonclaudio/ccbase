@@ -1,7 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { CLAUDE_CONFIG } from "../utils/paths.ts";
-import type { RootConfig } from "../utils/parse.ts";
-import { parseJsonFile } from "../utils/parse.ts";
+import { parseJsonFile, type RootConfig } from "../utils/parse.ts";
 
 export async function ingestRootConfig(db: Database): Promise<number> {
   if (!await Bun.file(CLAUDE_CONFIG).exists()) return 0;
@@ -11,7 +10,10 @@ export async function ingestRootConfig(db: Database): Promise<number> {
 
   const update = db.query(`
     UPDATE sessions
-    SET cost_usd = ?, input_tokens = ?, output_tokens = ?, lines_added = ?, lines_removed = ?
+    SET cost_usd = ?, input_tokens = ?, output_tokens = ?, lines_added = ?, lines_removed = ?,
+        api_duration_ms = ?, tool_duration_ms = ?,
+        total_cache_read_tokens = ?, total_cache_creation_tokens = ?,
+        total_web_search_requests = ?
     WHERE id = ?
   `);
 
@@ -28,6 +30,11 @@ export async function ingestRootConfig(db: Database): Promise<number> {
           project.lastTotalOutputTokens ?? null,
           project.lastLinesAdded ?? null,
           project.lastLinesRemoved ?? null,
+          project.lastAPIDuration ?? null,
+          (project as Record<string, unknown>).lastToolDuration as number ?? null,
+          project.lastTotalCacheReadInputTokens ?? null,
+          project.lastTotalCacheCreationInputTokens ?? null,
+          project.lastTotalWebSearchRequests ?? null,
           project.lastSessionId,
         );
 

@@ -8,7 +8,7 @@ export interface HistoryEntry {
   sessionId: string;
 }
 
-export interface SessionsIndexEntry {
+interface SessionsIndexEntry {
   sessionId: string;
   fullPath: string;
   fileMtime: number;
@@ -27,14 +27,14 @@ export interface SessionsIndexFile {
   entries: SessionsIndexEntry[];
 }
 
-export interface DailyActivity {
+interface DailyActivity {
   date: string;
   messageCount: number;
   sessionCount: number;
   toolCallCount: number;
 }
 
-export interface ModelUsage {
+interface ModelUsage {
   inputTokens: number;
   outputTokens: number;
   cacheReadInputTokens: number;
@@ -54,20 +54,12 @@ export interface StatsCache {
   modelUsage: Record<string, ModelUsage>;
 }
 
-export interface TaskFile {
-  id: number;
-  subject: string;
-  description: string;
-  activeForm: string;
-  status: "pending" | "in_progress" | "completed";
-  blocks: number[];
-  blockedBy: number[];
-}
-
-export interface RootConfigProject {
+interface RootConfigProject {
   allowedTools: string[];
   lastCost: number;
   lastAPIDuration: number;
+  lastAPIDurationWithoutRetries: number;
+  lastToolDuration: number;
   lastDuration: number;
   lastLinesAdded: number;
   lastLinesRemoved: number;
@@ -79,6 +71,8 @@ export interface RootConfigProject {
   lastModelUsage: Record<string, ModelUsage>;
   lastSessionId: string;
   lastSessionMetrics?: Record<string, unknown>;
+  lastFpsAverage?: number;
+  lastFpsLow1Pct?: number;
   [key: string]: unknown;
 }
 
@@ -113,16 +107,3 @@ export async function parseJsonFile<T>(path: string): Promise<T> {
   return Bun.file(path).json() as Promise<T>;
 }
 
-/**
- * Read a .jsonl file, parse each line, filter out failed parses.
- */
-export async function parseJsonlFile<T>(path: string): Promise<T[]> {
-  const text = await Bun.file(path).text();
-  try {
-    return Bun.JSONL.parse(text) as T[];
-  } catch {
-    // Fallback: some lines may be invalid, use chunk parser for error recovery
-    const result = Bun.JSONL.parseChunk(text);
-    return result.values as T[];
-  }
-}

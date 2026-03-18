@@ -2,155 +2,182 @@ import { Glob } from "bun";
 import type { Database } from "bun:sqlite";
 import { PROJECTS_DIR, listDirs } from "../utils/paths.ts";
 
+interface ParsedRecord {
+  uuid: unknown;
+  parentUuid: unknown;
+  rawType: unknown;
+  role: string | null;
+  content: string | null;
+  model: string | null;
+  ts: unknown;
+  sidechain: number;
+  toolName: string | null;
+  toolUseId: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  hasThinking: number;
+  thinkingLen: number;
+  isError: number;
+  cacheReadTokens: number | null;
+  cacheCreationTokens: number | null;
+  stopReason: string | null;
+  serviceTier: string | null;
+  webSearchCount: number;
+  webFetchCount: number;
+  cliVersion: string | null;
+  slug: string | null;
+  permissionMode: string | null;
+  durationMs: number | null;
+  subtype: string | null;
+}
+
+function parseMessageContent(msg: Record<string, unknown>): Pick<ParsedRecord, "content" | "toolName" | "toolUseId" | "hasThinking" | "thinkingLen" | "isError"> {
+  let content: string | null = null;
+  let toolName: string | null = null;
+  let toolUseId: string | null = null;
+  let hasThinking = 0;
+  let thinkingLen = 0;
+  let isError = 0;
+
+  if (typeof msg.content === "string") {
+    content = msg.content;
+  } else if (Array.isArray(msg.content)) {
+    const parts: string[] = [];
+    for (const block of msg.content) {
+      if (!block || typeof block !== "object") continue;
+      if (block.type === "text" && block.text) {
+        parts.push(block.text);
+      } else if (block.type === "thinking" && block.thinking) {
+        hasThinking = 1;
+        thinkingLen += block.thinking.length;
+        parts.push(`<thinking>\n${block.thinking}\n</thinking>`);
+      } else if (block.type === "tool_use") {
+        toolName = block.name || null;
+        toolUseId = block.id || null;
+        const inputStr = typeof block.input === "string" ? block.input : JSON.stringify(block.input);
+        parts.push(`<tool_use name="${block.name}" id="${block.id}">\n${inputStr}\n</tool_use>`);
+      } else if (block.type === "tool_result") {
+        isError = block.is_error ? 1 : 0;
+        const resultContent = typeof block.content === "string" ? block.content : JSON.stringify(block.content);
+        parts.push(`<tool_result${block.is_error ? ' error="true"' : ''}>\n${resultContent || ""}\n</tool_result>`);
+      }
+    }
+    content = parts.join("\n") || null;
+  }
+
+  return { content, toolName, toolUseId, hasThinking, thinkingLen, isError };
+}
+
+function parseRecord(d: Record<string, unknown>): ParsedRecord | null {
+  if (!d || typeof d !== "object") return null;
+
+  const rawType = d.type ?? "unknown";
+  const msg = d.message as Record<string, unknown> | undefined;
+  const uuid = d.uuid || null;
+  const parentUuid = d.parentUuid || null;
+  const ts = d.timestamp || null;
+  const sidechain = d.isSidechain ? 1 : 0;
+
+  if (msg) {
+    const role = (msg.role as string) || null;
+    const model = (msg.model as string) || null;
+    const usage = (msg.usage as Record<string, unknown>) || {};
+    const inputTokens = (usage.input_tokens as number) ?? null;
+    const outputTokens = (usage.output_tokens as number) ?? null;
+    const cacheReadTokens = (usage.cache_read_input_tokens as number) ?? null;
+    const cacheCreationTokens = (usage.cache_creation_input_tokens as number) ?? null;
+    const serviceTier = (usage.service_tier as string) ?? null;
+    const serverToolUse = (usage.server_tool_use as Record<string, unknown>) ?? {};
+    const webSearchCount = (serverToolUse.web_search_requests as number) ?? 0;
+    const webFetchCount = (serverToolUse.web_fetch_requests as number) ?? 0;
+    const stopReason = (msg.stop_reason as string) ?? null;
+    const cliVersion = (d.version as string) ?? null;
+    const slug = (d.slug as string) ?? null;
+    const permissionMode = (d.permissionMode as string) ?? null;
+    const durationMs = (d.durationMs as number) ?? null;
+    const subtype = (d.subtype as string) ?? null;
+    const parsed = parseMessageContent(msg);
+    return { uuid, parentUuid, rawType, role, model, ts, sidechain, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, stopReason, serviceTier, webSearchCount, webFetchCount, cliVersion, slug, permissionMode, durationMs, subtype, ...parsed };
+  }
+
+  let content: string | null = null;
+  if (d.data) {
+    content = JSON.stringify(d.data).slice(0, 2000);
+  } else if (d.snapshot) {
+    content = `[snapshot: ${d.messageId || "?"}]`;
+  } else if (d.toolUseResult) {
+    content = typeof d.toolUseResult === "string" ? d.toolUseResult.slice(0, 2000) : JSON.stringify(d.toolUseResult).slice(0, 2000);
+  }
+
+  return {
+    uuid, parentUuid, rawType, role: rawType as string, content, model: null,
+    ts, sidechain, toolName: null, toolUseId: null, inputTokens: null, outputTokens: null,
+    hasThinking: 0, thinkingLen: 0, isError: 0,
+    cacheReadTokens: null, cacheCreationTokens: null, stopReason: null, serviceTier: null,
+    webSearchCount: 0, webFetchCount: 0, cliVersion: (d.version as string) ?? null,
+    slug: (d.slug as string) ?? null, permissionMode: (d.permissionMode as string) ?? null,
+    durationMs: (d.durationMs as number) ?? null, subtype: (d.subtype as string) ?? null,
+  };
+}
+
 /**
- * Ingest ALL conversation JSONL lines. No skipping. No truncation.
- * Every line from every file, including agent files and large sessions.
+ * Stream-ingest conversation JSONL files. Reads one file at a time
+ * instead of buffering all records in memory.
  */
 export async function ingestConversations(db: Database): Promise<number> {
-  db.exec(`CREATE TABLE IF NOT EXISTS conversation_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT,
-    uuid TEXT,
-    parent_uuid TEXT,
-    type TEXT,
-    role TEXT,
-    content TEXT,
-    model TEXT,
-    timestamp TEXT,
-    is_sidechain INTEGER DEFAULT 0,
-    agent_id TEXT,
-    tool_name TEXT,
-    tool_use_id TEXT,
-    input_tokens INTEGER,
-    output_tokens INTEGER,
-    has_thinking INTEGER DEFAULT 0,
-    thinking_length INTEGER DEFAULT 0,
-    is_error INTEGER DEFAULT 0,
-    raw_type TEXT
-  )`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_session ON conversation_messages(session_id)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_type ON conversation_messages(type)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_ts ON conversation_messages(timestamp)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_role ON conversation_messages(role)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_tool ON conversation_messages(tool_name)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_agent ON conversation_messages(agent_id)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_session_type ON conversation_messages(session_id, type)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_session_role ON conversation_messages(session_id, role)`);
-  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(content, content='conversation_messages', content_rowid='id')`);
-
   db.exec(`DELETE FROM conversation_messages`);
 
-  const insert = db.query(`INSERT INTO conversation_messages (session_id,uuid,parent_uuid,type,role,content,model,timestamp,is_sidechain,agent_id,tool_name,tool_use_id,input_tokens,output_tokens,has_thinking,thinking_length,is_error,raw_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const insert = db.query(`INSERT INTO conversation_messages (session_id,uuid,parent_uuid,type,role,content,model,timestamp,is_sidechain,agent_id,tool_name,tool_use_id,input_tokens,output_tokens,has_thinking,thinking_length,is_error,raw_type,cache_read_tokens,cache_creation_tokens,stop_reason,service_tier,web_search_count,web_fetch_count,cli_version,slug,permission_mode,duration_ms,subtype) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
 
-  let total = 0;
   let dirs: string[];
   try { dirs = listDirs(PROJECTS_DIR); } catch { return 0; }
 
-  // Phase 1: Read and parse all files async (Bun.JSONL for native SIMD parsing)
-  const fileData: { sessionId: string; agentId: string | null; records: Record<string, unknown>[] }[] = [];
+  let total = 0;
+
+  const tx = db.transaction((sessionId: string, agentId: string | null, records: Record<string, unknown>[]) => {
+    for (const d of records) {
+      const r = parseRecord(d);
+      if (!r) continue;
+      insert.run(
+        sessionId, r.uuid, r.parentUuid, r.rawType, r.role, r.content, r.model, r.ts,
+        r.sidechain, agentId, r.toolName, r.toolUseId, r.inputTokens, r.outputTokens,
+        r.hasThinking, r.thinkingLen, r.isError, r.rawType,
+        r.cacheReadTokens, r.cacheCreationTokens, r.stopReason, r.serviceTier,
+        r.webSearchCount, r.webFetchCount, r.cliVersion,
+        r.slug, r.permissionMode, r.durationMs, r.subtype,
+      );
+      total++;
+    }
+  });
+
   for (const dir of dirs) {
     const projDir = PROJECTS_DIR + "/" + dir;
     let files: string[];
     try { files = [...new Glob("*.jsonl").scanSync(projDir)]; } catch { continue; }
 
     for (const sub of files) {
-      const path = projDir + "/" + sub;
       const isAgent = sub.startsWith("agent-");
       const sessionId = isAgent ? sub.replace(/^agent-/, "").replace(/\.jsonl$/, "") : sub.replace(/\.jsonl$/, "");
       const agentId = isAgent ? sessionId : null;
 
       try {
-        const text = await Bun.file(path).text();
-        const result = Bun.JSONL.parseChunk(text);
-        if (result.values.length) fileData.push({ sessionId, agentId, records: result.values });
+        const bytes = await Bun.file(projDir + "/" + sub).bytes();
+        const result = Bun.JSONL.parseChunk(bytes);
+        if (result.values.length) tx(sessionId, agentId, result.values);
       } catch { continue; }
     }
   }
 
-  // Phase 2: Insert in transaction with pre-parsed data
-  const tx = db.transaction(() => {
-    for (const { sessionId, agentId, records } of fileData) {
-      for (const d of records) {
-        if (!d || typeof d !== "object") continue;
+  // Backfill session slugs from conversation data
+  try {
+    db.exec(`UPDATE sessions SET slug = (SELECT slug FROM conversation_messages cm WHERE cm.session_id = sessions.id AND cm.slug IS NOT NULL LIMIT 1) WHERE slug IS NULL`);
+  } catch { /* ignore */ }
 
-        const rawType = d.type || "unknown";
-        const msg = d.message;
-        const uuid = d.uuid || null;
-        const parentUuid = d.parentUuid || null;
-        const ts = d.timestamp || null;
-        const sidechain = d.isSidechain ? 1 : 0;
-
-        let content: string | null = null;
-        let role: string | null = null;
-        let model: string | null = null;
-        let inTok: number | null = null;
-        let outTok: number | null = null;
-        let toolName: string | null = null;
-        let toolUseId: string | null = null;
-        let hasThinking = 0;
-        let thinkingLen = 0;
-        let isError = 0;
-
-        if (msg) {
-          role = msg.role || null;
-          model = msg.model || null;
-          const usage = msg.usage || {};
-          inTok = usage.input_tokens || null;
-          outTok = usage.output_tokens || null;
-
-          if (typeof msg.content === "string") {
-            content = msg.content;
-          } else if (Array.isArray(msg.content)) {
-            const parts: string[] = [];
-            for (const block of msg.content) {
-              if (!block || typeof block !== "object") continue;
-              if (block.type === "text" && block.text) {
-                parts.push(block.text);
-              } else if (block.type === "thinking" && block.thinking) {
-                hasThinking = 1;
-                thinkingLen += block.thinking.length;
-                parts.push(`<thinking>\n${block.thinking}\n</thinking>`);
-              } else if (block.type === "tool_use") {
-                toolName = block.name || null;
-                toolUseId = block.id || null;
-                const inputStr = typeof block.input === "string" ? block.input : JSON.stringify(block.input);
-                parts.push(`<tool_use name="${block.name}" id="${block.id}">\n${inputStr}\n</tool_use>`);
-              } else if (block.type === "tool_result") {
-                isError = block.is_error ? 1 : 0;
-                const resultContent = typeof block.content === "string" ? block.content : JSON.stringify(block.content);
-                parts.push(`<tool_result${block.is_error ? ' error="true"' : ''}>\n${resultContent || ""}\n</tool_result>`);
-              }
-            }
-            content = parts.join("\n") || null;
-          }
-        } else {
-          if (d.data) {
-            content = JSON.stringify(d.data).slice(0, 2000);
-          } else if (d.snapshot) {
-            content = `[snapshot: ${d.messageId || "?"}]`;
-          } else if (d.toolUseResult) {
-            content = typeof d.toolUseResult === "string" ? d.toolUseResult.slice(0, 2000) : JSON.stringify(d.toolUseResult).slice(0, 2000);
-          }
-          role = rawType;
-        }
-
-        insert.run(
-          sessionId, uuid, parentUuid, rawType, role, content, model, ts,
-          sidechain, agentId, toolName, toolUseId, inTok, outTok,
-          hasThinking, thinkingLen, isError, rawType
-        );
-        total++;
-      }
-    }
-  });
-
-  tx();
-
-  // Rebuild FTS - drop and recreate to avoid corruption
+  // Rebuild FTS
   try {
     db.exec(`DROP TABLE IF EXISTS conversation_fts`);
     db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(content)`);
-    db.exec(`INSERT INTO conversation_fts(rowid, content) SELECT id, content FROM conversation_messages WHERE content IS NOT NULL AND type IN ('user','assistant')`);
+    db.exec(`INSERT INTO conversation_fts(rowid, content) SELECT id, content FROM conversation_messages WHERE content IS NOT NULL AND type IN ('user','assistant') AND content NOT LIKE '<tool_%' AND content NOT LIKE '<thinking>%'`);
   } catch (e) { console.error("FTS rebuild:", e); }
 
   return total;
