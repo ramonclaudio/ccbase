@@ -147,6 +147,10 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c" data-w="mcp_usage"><h2>MCP Servers</h2><div class="sc" id="p_mcp"></div></div>
 <div class="c" data-w="web_usage"><h2>Web Search</h2><div id="p_web"></div></div>
 <div class="c" data-w="model_switches"><h2>Model Switches</h2><div id="p_mswitches"></div></div>
+<div class="c" data-w="lifetime_tools"><h2>Tool Usage (Lifetime)</h2><div class="sc" id="p_lttools"></div></div>
+<div class="c" data-w="lifetime_skills"><h2>Skill Usage (Lifetime)</h2><div class="sc" id="p_ltskills"></div></div>
+<div class="c" data-w="version_dist"><h2>Version Distribution</h2><div class="sc" id="p_versions"></div></div>
+<div class="c" data-w="perm_modes"><h2>Permission Modes</h2><div class="sc" id="p_perms"></div></div>
 </div>
 
 <div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
@@ -170,9 +174,10 @@ const WIDGETS={
   "Cost & Models":{billing:"Billing Blocks",tokens_model:"Tokens by Model",thinking:"Thinking Depth"},
   "Deep Dive":{tool_errors:"Tool Errors",subagents:"Subagents",msg_types:"Message Types",plan_mode:"Plan Mode",sidechain:"Sidechain Activity",paste_rewind:"Paste & Rewind"},
   "Performance":{tool_durations:"Tool Duration",turn_latency:"Turn Latency",cache_efficiency:"Cache Efficiency",service_tiers:"Service Tiers"},
-  "Infrastructure":{mcp_usage:"MCP Servers",web_usage:"Web Search",model_switches:"Model Switches"}
+  "Infrastructure":{mcp_usage:"MCP Servers",web_usage:"Web Search",model_switches:"Model Switches"},
+  "Usage":{lifetime_tools:"Tool Usage (Lifetime)",lifetime_skills:"Skill Usage (Lifetime)",version_dist:"Version Distribution",perm_modes:"Permission Modes"}
 };
-const DEFAULT_HIDDEN=new Set(["tool_errors","subagents","commit_scopes","msg_types","plan_mode","sidechain","paste_rewind","thinking","tokens_project","tool_durations","turn_latency","cache_efficiency","service_tiers","mcp_usage","web_usage","model_switches"]);
+const DEFAULT_HIDDEN=new Set(["tool_errors","subagents","commit_scopes","msg_types","plan_mode","sidechain","paste_rewind","thinking","tokens_project","tool_durations","turn_latency","cache_efficiency","service_tiers","mcp_usage","web_usage","model_switches","version_dist","perm_modes"]);
 
 function getHidden(){
   const raw=localStorage.getItem("hidden_widgets");
@@ -539,6 +544,46 @@ async function load(){
       $("p_mswitches").innerHTML='<div class="stats" style="margin:0;gap:12px">'+[
         [total.toLocaleString(),"sessions"]
       ].map(sf5).join("")+'</div>';
+    }
+  });
+
+  // Usage widgets (tool usage, skill usage, versions, permissions)
+  Promise.all([F("/api/tool-usage"),F("/api/skill-usage"),F("/api/version-distribution"),F("/api/permission-modes"),F("/api/app-meta")]).then(([ltTools,ltSkills,versions,perms,appMeta])=>{
+    if($("p_lttools")&&ltTools?.length){
+      const tmax=Math.max(...ltTools.map(t=>t.usage_count||0),1);
+      $("p_lttools").innerHTML=ltTools.slice(0,15).map(t=>{
+        const w=Math.round((t.usage_count||0)/tmax*130);
+        return '<div class="br"><span class="nm">'+e(t.tool)+'</span><span class="b" style="width:'+w+'px;background:#569cd6"></span><span class="v">'+t.usage_count+'x</span></div>';
+      }).join("");
+    }
+    if($("p_ltskills")&&ltSkills?.length){
+      const smax=Math.max(...ltSkills.map(s=>s.usage_count||0),1);
+      $("p_ltskills").innerHTML=ltSkills.slice(0,15).map(s=>{
+        const w=Math.round((s.usage_count||0)/smax*130);
+        return '<div class="br"><span class="nm">'+e(s.skill)+'</span><span class="b" style="width:'+w+'px;background:#c586c0"></span><span class="v">'+s.usage_count+'x</span></div>';
+      }).join("");
+    }
+    if($("p_versions")&&versions?.length){
+      const vmax=Math.max(...versions.map(v=>v.sessions||0),1);
+      $("p_versions").innerHTML=versions.slice(0,12).map(v=>{
+        const w=Math.round((v.sessions||0)/vmax*130);
+        return '<div class="br"><span class="nm">'+e(v.cli_version||"?")+'</span><span class="b" style="width:'+w+'px;background:#6a9955"></span><span class="v">'+v.sessions+' sess</span></div>';
+      }).join("");
+    }
+    if($("p_perms")&&perms?.length){
+      const pmax=Math.max(...perms.map(p=>p.n||0),1);
+      $("p_perms").innerHTML=perms.map(p=>{
+        const w=Math.round((p.n||0)/pmax*130);
+        return '<div class="br"><span class="nm">'+e(p.permission_mode||"?")+'</span><span class="b" style="width:'+w+'px;background:#d7ba7d"></span><span class="v">'+p.n+'</span></div>';
+      }).join("");
+    }
+    // Add app meta to stats bar
+    if(appMeta&&$("stats2")){
+      const sf=([n,l])=>'<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
+      const extra=[];
+      if(appMeta.num_startups)extra.push([appMeta.num_startups.toLocaleString(),"startups"]);
+      if(appMeta.first_start_time)extra.push([new Date(appMeta.first_start_time).toLocaleDateString(),"first use"]);
+      if(extra.length)$("stats2").innerHTML+=extra.map(sf).join("");
     }
   });
 

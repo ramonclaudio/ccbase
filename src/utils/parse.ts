@@ -52,6 +52,12 @@ export interface StatsCache {
   dailyActivity: DailyActivity[];
   dailyModelTokens: unknown[];
   modelUsage: Record<string, ModelUsage>;
+  totalSessions: number;
+  totalMessages: number;
+  longestSession: { sessionId: string; duration: number; messageCount: number; timestamp: string } | null;
+  firstSessionDate: string | null;
+  hourCounts: Record<string, number>;
+  totalSpeculationTimeSavedMs: number;
 }
 
 interface RootConfigProject {

@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { STATS_FILE } from "../utils/paths.ts";
+import { STATS_FILE, CLAUDE_CONFIG } from "../utils/paths.ts";
 import { parseJsonFile, type StatsCache } from "../utils/parse.ts";
 
 export async function ingestStats(db: Database): Promise<number> {
@@ -46,6 +46,44 @@ export async function ingestStats(db: Database): Promise<number> {
             insertDMT.run(entry.date, model, tokens);
           }
         }
+      });
+      tx();
+    }
+  }
+
+  // Phase 1d: Import longestSession and hourCounts from stats-cache
+  if (await Bun.file(STATS_FILE).exists()) {
+    const stats = await parseJsonFile<StatsCache>(STATS_FILE);
+    if (stats) {
+      const insertMeta = db.query(`INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)`);
+      const tx = db.transaction(() => {
+        if (stats.longestSession) insertMeta.run("longest_session", JSON.stringify(stats.longestSession));
+        if (stats.hourCounts) insertMeta.run("hour_counts", JSON.stringify(stats.hourCounts));
+        if (stats.totalSessions) insertMeta.run("stats_total_sessions", String(stats.totalSessions));
+        if (stats.totalMessages) insertMeta.run("stats_total_messages", String(stats.totalMessages));
+        if (stats.firstSessionDate) insertMeta.run("first_session_date", String(stats.firstSessionDate));
+        if (stats.totalSpeculationTimeSavedMs) insertMeta.run("total_speculation_time_saved_ms", String(stats.totalSpeculationTimeSavedMs));
+      });
+      tx();
+    }
+  }
+
+  // Phase 1e: Import toolUsage, skillUsage, and app meta from .claude.json
+  if (await Bun.file(CLAUDE_CONFIG).exists()) {
+    const config = await parseJsonFile<Record<string, unknown>>(CLAUDE_CONFIG);
+    if (config) {
+      const insertTool = db.query(`INSERT OR REPLACE INTO tool_usage (tool, usage_count, last_used_at) VALUES (?, ?, ?)`);
+      const insertSkill = db.query(`INSERT OR REPLACE INTO skill_usage (skill, usage_count, last_used_at) VALUES (?, ?, ?)`);
+      const insertMeta = db.query(`INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)`);
+      const tx = db.transaction(() => {
+        const tu = config.toolUsage as Record<string, { usageCount: number; lastUsedAt: number }> | undefined;
+        if (tu) for (const [tool, v] of Object.entries(tu)) insertTool.run(tool, v.usageCount ?? 0, v.lastUsedAt ?? 0);
+        const su = config.skillUsage as Record<string, { usageCount: number; lastUsedAt: number }> | undefined;
+        if (su) for (const [skill, v] of Object.entries(su)) insertSkill.run(skill, v.usageCount ?? 0, v.lastUsedAt ?? 0);
+        if (config.numStartups) insertMeta.run("num_startups", String(config.numStartups));
+        if (config.firstStartTime) insertMeta.run("first_start_time", String(config.firstStartTime));
+        if (config.claudeCodeFirstTokenDate) insertMeta.run("first_token_date", String(config.claudeCodeFirstTokenDate));
+        if (config.installMethod) insertMeta.run("install_method", String(config.installMethod));
       });
       tx();
     }

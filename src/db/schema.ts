@@ -184,6 +184,23 @@ CREATE TABLE IF NOT EXISTS daily_model_tokens (
   PRIMARY KEY (date, model)
 );
 CREATE INDEX IF NOT EXISTS idx_dmt_date ON daily_model_tokens(date);
+
+CREATE TABLE IF NOT EXISTS tool_usage (
+  tool TEXT PRIMARY KEY,
+  usage_count INTEGER,
+  last_used_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS skill_usage (
+  skill TEXT PRIMARY KEY,
+  usage_count INTEGER,
+  last_used_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS app_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
 `;
 
 export function createSchema(db: Database): void {

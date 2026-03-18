@@ -330,6 +330,32 @@ export function serveCommand(args: string[]): void {
       "/api/session-slugs": () => {
         return Response.json(q(`SELECT id, slug, summary, project_path FROM sessions WHERE slug IS NOT NULL ORDER BY started_at DESC LIMIT 100`), { headers: CORS });
       },
+      "/api/tool-usage": () => {
+        return Response.json(q(`SELECT * FROM tool_usage ORDER BY usage_count DESC`), { headers: CORS });
+      },
+      "/api/skill-usage": () => {
+        return Response.json(q(`SELECT * FROM skill_usage ORDER BY usage_count DESC`), { headers: CORS });
+      },
+      "/api/app-meta": () => {
+        const rows = q(`SELECT * FROM app_meta`) as { key: string; value: string }[];
+        const meta: Record<string, unknown> = {};
+        for (const r of rows) {
+          try { meta[r.key] = JSON.parse(r.value); } catch { meta[r.key] = r.value; }
+        }
+        return Response.json(meta, { headers: CORS });
+      },
+      "/api/compaction-events": () => {
+        return Response.json(q(`SELECT session_id, subtype, duration_ms, timestamp FROM conversation_messages WHERE subtype IN ('microcompact_boundary','compact_boundary') ORDER BY timestamp DESC`), { headers: CORS });
+      },
+      "/api/api-errors": () => {
+        return Response.json(q(`SELECT session_id, timestamp, cli_version FROM conversation_messages WHERE subtype='api_error' ORDER BY timestamp DESC`), { headers: CORS });
+      },
+      "/api/version-distribution": () => {
+        return Response.json(q(`SELECT cli_version, COUNT(DISTINCT session_id) as sessions, COUNT(*) as messages FROM conversation_messages WHERE cli_version IS NOT NULL GROUP BY cli_version ORDER BY sessions DESC`), { headers: CORS });
+      },
+      "/api/permission-modes": () => {
+        return Response.json(q(`SELECT permission_mode, COUNT(*) as n FROM conversation_messages WHERE permission_mode IS NOT NULL GROUP BY permission_mode ORDER BY n DESC`), { headers: CORS });
+      },
       "/api/conversation-stats": () => {
         const s = getStats(q);
         return Response.json({

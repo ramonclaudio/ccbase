@@ -22,6 +22,9 @@ const TABLES = [
   "daily_stats",
   "daily_model_tokens",
   "model_usage",
+  "tool_usage",
+  "skill_usage",
+  "app_meta",
   "sessions",
   "projects",
 ];
