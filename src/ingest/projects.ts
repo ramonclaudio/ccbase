@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { execSync } from "node:child_process";
 import type { Database } from "bun:sqlite";
 import { DEVELOPER_DIR, listDirs } from "../utils/paths.ts";
 import { isGitRepo, gitState, gitRecentCommits } from "../utils/git.ts";
@@ -10,7 +11,26 @@ const TYPED_PARENTS = new Map([
   ["forks", "fork"],
   ["refs", "ref"],
 ]);
-const MY_NAMES = new Set(["Ray", "the author", "the author", "ramonclaudio"]);
+
+function getGitAuthorNames(): Set<string> {
+  try {
+    const name = execSync("git config --get user.name", { encoding: "utf-8" }).trim();
+    const email = execSync("git config --get user.email", { encoding: "utf-8" }).trim();
+    const username = email.split("@")[0] || "";
+    const names = new Set<string>();
+    if (name) names.add(name);
+    if (username) names.add(username);
+    // Add common variations
+    if (name.includes(" ")) {
+      names.add(name.split(" ")[0]!); // first name only
+    }
+    return names;
+  } catch {
+    return new Set();
+  }
+}
+
+const MY_NAMES = getGitAuthorNames();
 
 interface ProjectData {
   path: string;

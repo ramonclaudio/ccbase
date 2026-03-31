@@ -3,7 +3,11 @@ dist/
 data/analyzer.db
 data/analyzer.db-wal
 data/analyzer.db-shm
+data/analyzer.db-journal
 data/.ingest-state.json
+data/*.html
 *.tsbuildinfo
+.env*
+PROMPT.md
 analyzer.db
 index
