@@ -579,7 +579,7 @@ async function load(){
       $("p_facets").innerHTML=facets.slice(0,20).map(f=>{
         const colors={fully_achieved:"var(--green)",mostly_achieved:"#788c5d",partially_achieved:"var(--yellow)",not_achieved:"var(--red)",unclear_from_transcript:"var(--dim)"};
         const c=colors[f.outcome]||"var(--dim)";
-        return '<div class="sn" onclick="window.open(\'/chat?s='+f.session_id+'\',\'_blank\')"><span style="color:'+c+';font-size:10px;width:100px">'+e(f.outcome||"?")+'</span><span class="pr" style="flex:1">'+e((f.brief_summary||"").slice(0,80))+'</span><span style="color:var(--dim);font-size:10px">'+e(f.claude_helpfulness||"")+'</span></div>';
+        return '<div class="sn" onclick="window.open(\'/chat?s='+f.session_id+'\',\'_blank\')"><span style="color:'+c+';font-size:9px;width:120px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e(f.outcome||"?")+'</span><span class="pr" style="flex:1">'+e((f.brief_summary||"").slice(0,80))+'</span><span style="color:var(--dim);font-size:9px;flex-shrink:0">'+e(f.claude_helpfulness||"")+'</span></div>';
       }).join("");
     }
   });
