@@ -4,23 +4,21 @@
 [![Bun](https://img.shields.io/badge/bun-%23847000.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-Local analytics dashboard and chat history viewer for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Turns your conversation history into a searchable database with a live web dashboard, cost tracking, and full session replay.
+Your Claude Code session data, queryable. Local analytics dashboard, searchable chat history, cost tracking, and full session replay.
 
 > [!IMPORTANT]
 > All data stays on your machine. Zero runtime dependencies. No API calls, no telemetry, no accounts.
 
 ![ccbase](.github/assets/ccbase-promo.png)
 
-## Why ccbase
+Reads `~/.claude/` and gives you:
 
-Claude Code stores rich data locally but gives you no way to see it. ccbase reads that data and shows you:
-
-- How much you're spending and on which projects
-- Which tools fail the most and why
-- Your coding patterns (time of day, session duration, streaks)
-- Full conversation history with search and session replay
-- Project health across all your repos
-- Team task status and skill error rates
+- Spend breakdown by project and model
+- Tool error rates and failure patterns
+- Coding patterns: time of day, session duration, streaks
+- Full conversation history with search and replay
+- Project health across all repos
+- Team tasks, skill usage, and cache efficiency
 
 ## Quick Start
 
@@ -123,25 +121,25 @@ ccbase ingest --force   # Drop everything and re-ingest from scratch
 
 ### Project directory
 
-By default, ccbase scans `~/Developer` for git repos (one and two levels deep). Override with:
+Scans `~/Developer` for git repos by default. Override with `CCBASE_DEV_DIR`:
 
 ```bash
 CCBASE_DEV_DIR=~/projects ./dist/ccbase ingest
 ```
 
-The scanner finds git repos at `$CCBASE_DEV_DIR/*/` and `$CCBASE_DEV_DIR/*/*/`. Non-git directories at the first level are treated as parent directories and scanned one level deeper.
+Finds repos at `$CCBASE_DEV_DIR/*/` and `$CCBASE_DEV_DIR/*/*/`.
 
 ### Git author filtering
 
-Commits are filtered to your git identity. The tool reads `git config user.name` and the username from `git config user.email` to match commit authors. No manual configuration needed.
+Commits are filtered to your git identity via `git config user.name` and `user.email`. No manual config needed.
 
 ### Widget visibility
 
-The dashboard has a settings panel (gear icon) where you can show/hide any widget. Preferences persist in localStorage.
+Settings panel (gear icon) to show/hide any widget. Persists in localStorage.
 
 ### Theme
 
-Dark and light mode, toggled via the button in the header. Defaults to your OS preference.
+Dark and light mode. Defaults to OS preference.
 
 ## How It Works
 
@@ -163,9 +161,9 @@ graph LR
 
 ### Ground Truth
 
-All counts, tokens, and cost metrics are derived from `conversation_messages`, which is a direct parse of the JSONL conversation files. This is the most accurate source because it includes agent/subagent sessions that the sessions-index misses.
+All counts, tokens, and cost metrics come from `conversation_messages`, a direct parse of the JSONL files. This is the most accurate source because it includes agent/subagent sessions that sessions-index misses.
 
-The `sessions` table (from `sessions-index.json`) provides metadata that doesn't exist in JSONL: project paths, lines added/removed, git branch, PR links, and session slugs.
+The `sessions` table adds metadata not in JSONL: project paths, lines changed, git branch, PR links, session slugs.
 
 ### Database
 
@@ -192,14 +190,11 @@ Single SQLite file at [`data/ccbase.db`](data/). See [schema](src/db/schema.ts) 
 
 ### Ingestion Performance
 
-A typical ingest processes 300K+ messages in ~20 seconds. The conversation step is the heaviest (stream-parsing all JSONL files). Git operations have 10-15 second timeouts to prevent hangs on unreachable repos.
+300K+ messages in ~20 seconds. Git operations timeout after 10-15 seconds to avoid hanging on unreachable repos.
 
 ## Raw SQL Access
 
-The database is the API. Query it directly.
-
-> [!NOTE]
-> Only `SELECT`, `PRAGMA`, and `EXPLAIN` queries are allowed.
+The database is the API. Read-only: `SELECT`, `PRAGMA`, and `EXPLAIN` only.
 
 <details>
 <summary><strong>Example queries</strong></summary>
@@ -227,26 +222,23 @@ ccbase sql "SELECT SUBSTR(datetime(timestamp,'localtime'),1,10) as day,
 
 ## Stack
 
-Zero runtime dependencies. Everything is built on Bun primitives.
+Zero runtime dependencies. Bun + SQLite all the way down.
 
 | Layer | Technology |
 |:---|:---|
 | Runtime | [Bun](https://bun.sh) |
 | Database | SQLite via `bun:sqlite` (WAL mode, 128MB cache, 1GB mmap) |
 | Server | `Bun.serve()` with routes object |
-| Frontend | Vanilla HTML/CSS/JS (no framework, no bundler) |
-| Typography | [Geist Mono](https://vercel.com/font) (9 weights, served locally) |
-| Charts | Canvas API (no chart library) |
-| Syntax highlighting | Custom zero-dep tokenizer (JS/TS, Python, Bash, SQL, Go, Rust, CSS, JSON, YAML, Diff) |
-| Markdown | Custom zero-dep parser (headings, lists, tables, code blocks, inline formatting) |
+| Frontend | Vanilla HTML/CSS/JS |
+| Typography | [Geist Mono](https://vercel.com/font) (served locally) |
+| Charts | Canvas API |
+| Syntax highlighting | Custom zero-dep tokenizer (11 languages) |
+| Markdown | Custom zero-dep parser |
 | Search | SQLite FTS5 |
 
 ## Data Privacy
 
-> [!IMPORTANT]
-> ccbase is read-only against your `~/.claude/` directory. It never modifies Claude Code's files.
-
-The SQLite database and any exported HTML stay in the `data/` directory of the project. No data leaves your machine. No network requests except `localhost` for the dashboard.
+Read-only against `~/.claude/`. Never modifies your Claude Code data. The SQLite database and exports stay in the project's `data/` directory. No network requests except `localhost`.
 
 ## License
 
