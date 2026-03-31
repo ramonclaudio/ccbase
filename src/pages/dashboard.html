@@ -12,9 +12,9 @@ h1{font-size:22px;font-weight:700;color:var(--cream)}
 .hero-label{font-size:10px;color:var(--dim);margin-left:2px}
 code,.mono{font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,monospace}
 .sub{color:var(--dim);font-size:11px;margin:0 0 6px;line-height:1.6}
-.stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
-.stat .n{font-size:20px;font-weight:600;color:var(--cream);font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,monospace;line-height:1.1}
-.stat .l{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+.stat .n{font-size:18px;font-weight:600;color:var(--cream);font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,monospace;line-height:1.1}
+.stat .l{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:1px}
 .filter-toggle{background:transparent;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--dim);transition:all .12s ease}
 .filter-toggle:hover{color:var(--cream);border-color:var(--faint)}
 .filter-bar{display:none;margin-bottom:8px}
@@ -71,7 +71,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .tab{font-size:11px;padding:4px 12px;border-radius:8px;cursor:pointer;color:var(--dim);border:none;background:transparent;transition:all .12s ease}
 .tab:hover{color:var(--cream);background:var(--charcoal)}
 .tab.on{color:#f8f8f6;background:var(--charcoal)}
-.sc{max-height:300px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--charcoal) transparent}
+.sc{max-height:240px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--charcoal) transparent}
 .sc::-webkit-scrollbar{width:5px}.sc::-webkit-scrollbar-track{background:transparent}.sc::-webkit-scrollbar-thumb{background:var(--charcoal);border-radius:3px}.sc::-webkit-scrollbar-thumb:hover{background:var(--faint)}
 .search{margin-bottom:12px;display:flex;gap:8px}
 .search input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;color:var(--text);font-size:13px;outline:none;transition:border-color .15s ease}
@@ -124,8 +124,6 @@ canvas{width:100%!important;display:block;cursor:crosshair}
   </div>
 </div>
 <div class="sub" id="sub">loading...</div>
-<div data-w="stats_bar"><div class="stats" id="stats"></div>
-<div class="stats" id="stats2" style="display:none"></div></div>
 
 <div class="filter-bar" id="filterBar" data-w="search_bar">
   <div class="filter">
@@ -215,7 +213,7 @@ const F=s=>fetch(s).then(r=>r.json());
 
 // Widget visibility system
 const WIDGETS={
-  "Overview":{stats_bar:"Stats Bar",search_bar:"Search & Filters"},
+  "Overview":{search_bar:"Search & Filters"},
   "Activity":{sessions_day:"Sessions per Day",messages_day:"Messages per Day",hour_of_day:"Hour of Day",duration_dist:"Session Duration",heatmap:"Activity Heatmap"},
   "Projects":{proj_sessions:"Projects by Sessions",proj_tokens:"Projects by Tokens",health:"Project Health",tokens_project:"Tokens by Project"},
   "Current Work":{tasks:"Tasks",wip:"Work in Progress",recent_sessions:"Recent Sessions"},
@@ -269,7 +267,6 @@ function showAll(){saveHidden(new Set());applyVisibility();openSettings()}
 const nm=p=>p?p.split("/").pop():"?";
 const e=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").slice(0,100);
 const quantize=(v,max)=>v===0?0:v<max*.25?1:v<max*.5?2:v<max*.75?3:4;
-function toggleMoreStats(btn){const s2=$("stats2");s2.style.display=s2.style.display==="none"?"flex":"none";btn.textContent=s2.style.display==="none"?"more":"less";localStorage.setItem("stats_more",s2.style.display==="none"?"0":"1")}
 const dur=m=>{if(!m||m<1)return"<1m";const h=Math.floor(m/60);return h?h+"h "+Math.round(m%60)+"m":Math.round(m)+"m"};
 const $=id=>document.getElementById(id);
 const cs=["#d97757","#6a9bcc","#d4a27f","#c46686","#b0aea5","#87867f","#788c5d","#bcd1ca","#cbcadb","#5e5d59","#ebcece","#3d3d3a"];
@@ -394,19 +391,8 @@ async function load(){
   $("heroCost").textContent=money(stats.planValue?.n||0);
 
   // Subtitle
-  $("sub").textContent=daily.length+" days \xb7 "+totalHours+"h total \xb7 "+avgPerDay+"h/day \xb7 "+tok(stats.totalTokens?.n||0)+" tokens \xb7 "+stats.projects.n+" projects \xb7 "+(tm.completed||0)+" done \xb7 "+(tm.in_progress||0)+" wip"+streakText+longestText;
-
-  // Compact stats bar
+  $("sub").textContent=daily.length+" days \xb7 "+totalHours+"h total \xb7 "+avgPerDay+"h/day \xb7 "+tok(stats.totalTokens?.n||0)+" tokens \xb7 "+stats.messages.n.toLocaleString()+" msgs \xb7 "+(stats.toolCalls?.n||0).toLocaleString()+" tool calls \xb7 "+stats.projects.n+" projects \xb7 "+(tm.completed||0)+" done \xb7 "+(tm.in_progress||0)+" wip"+streakText+longestText;
   const sf=([n,l,c])=>'<div class="stat"><div class="n"'+(c?' style="color:'+c+'"':'')+'">'+n+'</div><div class="l">'+l+'</div></div>';
-  $("stats").innerHTML=[
-    [stats.messages.n.toLocaleString(),"messages"],
-    [(stats.toolCalls?.n||0).toLocaleString(),"tool calls"],
-    [(stats.thinkingBlocks?.n||0).toLocaleString(),"thinking"],
-    [(stats.subagents?.n||0).toLocaleString(),"agents"],
-    [(stats.errors?.n||0).toLocaleString(),"errors","var(--red)"],
-    [tok(stats.totalTokens?.n||0),"tokens"]
-  ].map(sf).join("");
-  if(localStorage.getItem("stats_more")==="1")$("stats2").style.display="flex";
 
   // Charts
   bar($("c_daily"),daily,"date","session_count","#d97757");
@@ -536,7 +522,6 @@ async function load(){
 
   // Stats bar: cache hit % (available immediately)
   if(cacheStats){
-    $("stats2").innerHTML+=sf([(cacheStats.cache_hit_pct||0)+"%","cache hit"]);
   }
 
   // Render heavy widgets when ready (non-blocking)
@@ -552,7 +537,6 @@ async function load(){
       $("p_turnlat").innerHTML='<div class="stats" style="margin:0;gap:12px">'+[
         [Math.round(turnLat.avg||0)+"ms","AVG"],[Math.round(turnLat.p50||0)+"ms","P50"],[Math.round(turnLat.p95||0)+"ms","P95"]
       ].map(sf).join("")+'</div>';
-      $("stats2").innerHTML+='<div class="stat"><div class="n">'+Math.round(turnLat.avg||0)+'ms</div><div class="l">turn latency</div></div>';
     }
     if($("p_web")&&webUsage){
       $("p_web").innerHTML='<div class="stats" style="margin:0;gap:12px">'+[
@@ -572,12 +556,6 @@ async function load(){
       }).join("");
     }
     // Add app meta to stats bar
-    if(appMeta&&$("stats2")){
-      const extra=[];
-      if(appMeta.num_startups)extra.push([appMeta.num_startups.toLocaleString(),"startups"]);
-      if(appMeta.first_start_time)extra.push([new Date(appMeta.first_start_time).toLocaleDateString(),"first use"]);
-      if(extra.length)$("stats2").innerHTML+=extra.map(sf).join("");
-    }
   });
 
   // Session Insights/Facets
