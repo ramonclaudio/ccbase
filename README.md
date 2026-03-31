@@ -1,4 +1,4 @@
-# Claude Pulse
+# ccbase
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bun](https://img.shields.io/badge/bun-%23847000.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
@@ -9,11 +9,11 @@ Local analytics dashboard and chat history viewer for [Claude Code](https://docs
 > [!IMPORTANT]
 > All data stays on your machine. Zero runtime dependencies. No API calls, no telemetry, no accounts.
 
-![Claude Pulse](.github/assets/claude-pulse-promo.png)
+![ccbase](.github/assets/ccbase-promo.png)
 
-## Why Claude Pulse
+## Why ccbase
 
-Claude Code stores rich data locally but gives you no way to see it. Claude Pulse reads that data and shows you:
+Claude Code stores rich data locally but gives you no way to see it. ccbase reads that data and shows you:
 
 - How much you're spending and on which projects
 - Which tools fail the most and why
@@ -26,18 +26,18 @@ Claude Code stores rich data locally but gives you no way to see it. Claude Puls
 
 ```bash
 # Install
-git clone https://github.com/ramonclaudio/claude-pulse.git
-cd claude-pulse
+git clone https://github.com/ramonclaudio/ccbase.git
+cd ccbase
 bun install
 
 # Build
 bun run build
 
 # Ingest your Claude Code data (takes ~20s for 300K+ messages)
-./dist/claude-pulse ingest
+./dist/ccbase ingest
 
 # Launch the dashboard
-./dist/claude-pulse serve
+./dist/ccbase serve
 ```
 
 Open [http://localhost:3847](http://localhost:3847).
@@ -55,33 +55,33 @@ Open [http://localhost:3847](http://localhost:3847).
 ### Dashboard and Chat
 
 ```bash
-claude-pulse serve [port]     # Live dashboard + chat viewer (default: 3847)
-claude-pulse export [path]    # Static HTML snapshot of the dashboard
+ccbase serve [port]     # Live dashboard + chat viewer (default: 3847)
+ccbase export [path]    # Static HTML snapshot of the dashboard
 ```
 
 ### CLI Analytics
 
 ```bash
-claude-pulse log              # Today's sessions grouped by project
-claude-pulse log --yesterday  # Yesterday's sessions
-claude-pulse log --week       # This week's sessions
-claude-pulse log 2026-03-15   # Sessions for a specific date
+ccbase log              # Today's sessions grouped by project
+ccbase log --yesterday  # Yesterday's sessions
+ccbase log --week       # This week's sessions
+ccbase log 2026-03-15   # Sessions for a specific date
 
-claude-pulse tasks            # Open tasks across all projects/teams
-claude-pulse tasks --done     # Recently completed tasks
+ccbase tasks            # Open tasks across all projects/teams
+ccbase tasks --done     # Recently completed tasks
 
-claude-pulse wip              # Work in progress: dirty repos, stashes, active sessions
-claude-pulse progress         # What shipped this week: commits, completed tasks
+ccbase wip              # Work in progress: dirty repos, stashes, active sessions
+ccbase progress         # What shipped this week: commits, completed tasks
 
-claude-pulse search "query"   # Full-text search across all conversations
-claude-pulse sql "SELECT ..." # Raw SQL against the database
+ccbase search "query"   # Full-text search across all conversations
+ccbase sql "SELECT ..." # Raw SQL against the database
 ```
 
 ### Data Management
 
 ```bash
-claude-pulse ingest           # Parse ~/.claude/ data into SQLite
-claude-pulse ingest --force   # Drop everything and re-ingest from scratch
+ccbase ingest           # Parse ~/.claude/ data into SQLite
+ccbase ingest --force   # Drop everything and re-ingest from scratch
 ```
 
 > [!WARNING]
@@ -123,13 +123,13 @@ claude-pulse ingest --force   # Drop everything and re-ingest from scratch
 
 ### Project directory
 
-By default, Claude Pulse scans `~/Developer` for git repos (one and two levels deep). Override with:
+By default, ccbase scans `~/Developer` for git repos (one and two levels deep). Override with:
 
 ```bash
-ANALYZER_DEV_DIR=~/projects ./dist/claude-pulse ingest
+CCBASE_DEV_DIR=~/projects ./dist/ccbase ingest
 ```
 
-The scanner finds git repos at `$ANALYZER_DEV_DIR/*/` and `$ANALYZER_DEV_DIR/*/*/`. Non-git directories at the first level are treated as parent directories and scanned one level deeper.
+The scanner finds git repos at `$CCBASE_DEV_DIR/*/` and `$CCBASE_DEV_DIR/*/*/`. Non-git directories at the first level are treated as parent directories and scanned one level deeper.
 
 ### Git author filtering
 
@@ -157,7 +157,7 @@ graph LR
     F["stats-cache.json"] --> I
     G["~/.claude.json"] --> I
     H["~/Developer/**/.git"] --> I
-    I --> DB[("SQLite analyzer.db")]
+    I --> DB[("SQLite ccbase.db")]
     DB --> S["Browser :3847"]
 ```
 
@@ -169,7 +169,7 @@ The `sessions` table (from `sessions-index.json`) provides metadata that doesn't
 
 ### Database
 
-Single SQLite file at [`data/analyzer.db`](data/). See [schema](src/db/schema.ts) for full DDL.
+Single SQLite file at [`data/ccbase.db`](data/). See [schema](src/db/schema.ts) for full DDL.
 
 <details>
 <summary><strong>Tables</strong></summary>
@@ -206,18 +206,18 @@ The database is the API. Query it directly.
 
 ```bash
 # Sessions by project this month
-claude-pulse sql "SELECT project_path, COUNT(*) as sessions
+ccbase sql "SELECT project_path, COUNT(*) as sessions
   FROM sessions WHERE started_at > strftime('%s','2026-03-01')*1000
   GROUP BY project_path ORDER BY sessions DESC"
 
 # Most error-prone tools
-claude-pulse sql "SELECT tool_name, COUNT(*) as calls,
+ccbase sql "SELECT tool_name, COUNT(*) as calls,
   SUM(CASE WHEN is_error=1 THEN 1 ELSE 0 END) as errors
   FROM conversation_messages WHERE tool_name IS NOT NULL
   GROUP BY tool_name ORDER BY errors DESC LIMIT 10"
 
 # Daily token spend
-claude-pulse sql "SELECT SUBSTR(datetime(timestamp,'localtime'),1,10) as day,
+ccbase sql "SELECT SUBSTR(datetime(timestamp,'localtime'),1,10) as day,
   SUM(input_tokens+output_tokens) as tokens
   FROM conversation_messages WHERE timestamp LIKE '20%'
   GROUP BY day ORDER BY day DESC LIMIT 7"
@@ -244,7 +244,7 @@ Zero runtime dependencies. Everything is built on Bun primitives.
 ## Data Privacy
 
 > [!IMPORTANT]
-> Claude Pulse is read-only against your `~/.claude/` directory. It never modifies Claude Code's files.
+> ccbase is read-only against your `~/.claude/` directory. It never modifies Claude Code's files.
 
 The SQLite database and any exported HTML stay in the `data/` directory of the project. No data leaves your machine. No network requests except `localhost` for the dashboard.
 

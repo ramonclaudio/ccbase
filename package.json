@@ -1,14 +1,14 @@
 {
-  "name": "claude-pulse",
+  "name": "ccbase",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "claude-pulse": "./src/index.ts"
+    "ccbase": "./src/index.ts"
   },
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch run src/index.ts serve",
-    "build": "bun build --compile --bytecode --minify --sourcemap --define __BUILD_TIME__=$(date +%s) --define __VERSION__='\"'$(node -p 'require(\"./package.json\").version')'\"' ./src/index.ts --outfile=./dist/claude-pulse",
+    "build": "bun build --compile --bytecode --minify --sourcemap --define __BUILD_TIME__=$(date +%s) --define __VERSION__='\"'$(node -p 'require(\"./package.json\").version')'\"' ./src/index.ts --outfile=./dist/ccbase",
     "build:bundle": "bun build --bytecode --target=bun --minify --sourcemap --outdir=./dist ./src/index.ts"
   },
   "devDependencies": {
