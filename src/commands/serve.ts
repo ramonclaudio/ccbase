@@ -196,8 +196,12 @@ export function serveCommand(args: string[]): void {
     routes: {
       "/": Bun.file(PAGES_DIR + "/dashboard.html"),
       "/chat": Bun.file(PAGES_DIR + "/chat.html"),
+      "/fonts/geist-light.ttf": Bun.file(FONTS_DIR + "/Geist_300Light.ttf"),
       "/fonts/geist-regular.ttf": Bun.file(FONTS_DIR + "/Geist_400Regular.ttf"),
+      "/fonts/geist-medium.ttf": Bun.file(FONTS_DIR + "/Geist_500Medium.ttf"),
       "/fonts/geist-semibold.ttf": Bun.file(FONTS_DIR + "/Geist_600SemiBold.ttf"),
+      "/fonts/geist-bold.ttf": Bun.file(FONTS_DIR + "/Geist_700Bold.ttf"),
+      "/fonts/geist-extrabold.ttf": Bun.file(FONTS_DIR + "/Geist_800ExtraBold.ttf"),
       "/fonts/geist-mono.ttf": Bun.file(FONTS_DIR + "/GeistMono_400Regular.ttf"),
 
       "/api/stats": () => Response.json(getStats(q), { headers: CORS }),

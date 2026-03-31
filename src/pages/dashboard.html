@@ -2,19 +2,23 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Claude Pulse</title>
 <style>
+@font-face{font-family:'Geist';src:url('/fonts/geist-light.ttf') format('truetype');font-weight:300;font-display:swap}
 @font-face{font-family:'Geist';src:url('/fonts/geist-regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'Geist';src:url('/fonts/geist-medium.ttf') format('truetype');font-weight:500;font-display:swap}
 @font-face{font-family:'Geist';src:url('/fonts/geist-semibold.ttf') format('truetype');font-weight:600;font-display:swap}
+@font-face{font-family:'Geist';src:url('/fonts/geist-bold.ttf') format('truetype');font-weight:700;font-display:swap}
+@font-face{font-family:'Geist';src:url('/fonts/geist-extrabold.ttf') format('truetype');font-weight:800;font-display:swap}
 @font-face{font-family:'Geist Mono';src:url('/fonts/geist-mono.ttf') format('truetype');font-weight:400;font-display:swap}
 :root,html[data-theme="dark"]{--bg:#0f0f0f;--card:#191919;--border:#2a2a2a;--text:#ededed;--dim:#888888;--faint:#555555;--green:#6b9e5a;--blue:#5e9fd4;--yellow:#cfa070;--red:#c06080;--accent:#d4724e;--purple:#b8b0d0;--cream:#ededed;--charcoal:#252525}
 html[data-theme="light"]{--bg:#f4f3f0;--card:#ffffff;--border:#dddbd3;--text:#141413;--dim:#87867f;--faint:#b0aea5;--green:#788c5d;--blue:#6a9bcc;--yellow:#d4a27f;--red:#c46686;--accent:#c6613f;--purple:#cbcadb;--cream:#141413;--charcoal:#f0eee6}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Geist',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);padding:16px 24px;max-width:1440px;margin:0 auto;font-size:13px;letter-spacing:.01em;line-height:1.5;font-variant-numeric:tabular-nums}
-h1{font-size:20px;font-weight:600;color:var(--text)}
+h1{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.02em}
 .hero{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
-.hero-stat{font-family:'Geist Mono','Geist Mono',monospace;font-size:20px;font-weight:600;line-height:1}
-.hero-label{font-size:10px;color:var(--faint);margin-left:1px}
+.hero-stat{font-family:'Geist Mono',monospace;font-size:22px;font-weight:700;line-height:1}
+.hero-label{font-size:10px;font-weight:500;color:var(--faint);margin-left:1px}
 code,.mono{font-family:'Geist Mono','Geist Mono',monospace}
-.sub{color:var(--dim);font-size:11px;margin:0 0 6px;line-height:1.6}
+.sub{color:var(--dim);font-size:11px;font-weight:300;margin:0 0 6px;line-height:1.6}
 .stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:4px}
 .stat .n{font-size:18px;font-weight:600;color:var(--cream);font-family:'Geist Mono','Geist Mono',monospace;line-height:1.1}
 .stat .l{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:1px}
@@ -22,7 +26,7 @@ code,.mono{font-family:'Geist Mono','Geist Mono',monospace}
 .filter-toggle:hover{color:var(--cream);border-color:var(--faint)}
 .filter-bar{display:none;margin-bottom:8px}
 .filter-bar.on{display:flex}
-.section{font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.02em;margin:20px 0 8px;padding-left:2px;display:flex;align-items:center;gap:10px}
+.section{font-size:11px;font-weight:600;color:var(--faint);letter-spacing:.02em;margin:20px 0 8px;padding-left:2px;display:flex;align-items:center;gap:10px}
 .section::after{content:'';flex:1;height:1px;background:var(--border)}
 .section:first-child{margin-top:2px}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
@@ -67,7 +71,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .hm{display:flex;gap:3px;flex-wrap:wrap}.hm .d{width:10px;height:10px;border-radius:3px}
 .lg{display:flex;gap:4px;align-items:center;margin-top:6px;font-size:9px;color:var(--dim)}.lg .d{width:10px;height:10px;border-radius:3px}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
-.tab{font-size:11px;padding:4px 12px;border-radius:8px;cursor:pointer;color:var(--dim);border:none;background:transparent;transition:all .12s ease}
+.tab{font-size:11px;font-weight:500;padding:4px 12px;border-radius:8px;cursor:pointer;color:var(--dim);border:none;background:transparent;transition:all .12s ease}
 .tab:hover{color:var(--cream);background:var(--charcoal)}
 .tab.on{color:var(--cream);background:var(--charcoal)}
 .sc{max-height:240px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--charcoal) transparent}
@@ -317,7 +321,7 @@ function bar(cv,data,lk,vk,color,h){
   ctx.scale(dpr,dpr);
   const mx=Math.max(...data.map(d=>d[vk]),1),bw=Math.max(2,(W-24)/data.length-2),pad=16;
   data.forEach((d,i)=>{const x=16+i*(bw+2),bh=(d[vk]/mx)*(h-pad-4);ctx.fillStyle=typeof color==="function"?color(d,i):color;rRect(ctx,x,h-pad-bh,bw,bh,Math.min(3,bw/2))});
-  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--dim').trim();ctx.font="9px system-ui";
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--dim').trim();ctx.font="9px 'Geist',sans-serif";
   const step=Math.max(1,Math.floor(data.length/8));
   data.forEach((d,i)=>{if(i%step===0){const x=16+i*(bw+2);const l=typeof d[lk]==="number"?d[lk]+"":String(d[lk]).slice(5);ctx.fillText(l,x,h-2)}});
   cv.onclick=function(evt){
@@ -340,7 +344,7 @@ function donut(cv,data,key){
   let a=-Math.PI/2;
   data.forEach((d,i)=>{const sl=(d.n/tot)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a,a+sl);ctx.closePath();ctx.fillStyle=cs[i%cs.length];ctx.fill();a+=sl});
   ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--card').trim();ctx.fill();
-  ctx.font="10px system-ui";
+  ctx.font="10px 'Geist',sans-serif";
   data.forEach((d,i)=>{const y=12+i*15,x=130;ctx.fillStyle=cs[i%cs.length];ctx.fillRect(x,y-7,7,7);ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--dim').trim();ctx.fillText(d[key]+" ("+d.n+")",x+12,y)});
 }
 
@@ -443,7 +447,7 @@ async function load(){
       bhtml+='<div style="margin-bottom:8px;padding:8px;border:1px solid var(--accent);border-radius:4px;background:rgba(217,119,87,0.08)">';
       bhtml+='<div style="font-size:10px;color:var(--accent);font-weight:600;margin-bottom:4px">CURRENT BLOCK</div>';
       bhtml+='<div style="display:flex;gap:12px;align-items:baseline">';
-      bhtml+='<span style="font-size:20px;font-weight:700;font-family:\'Fira Code\',monospace;color:var(--cream)">'+money(cur.total_cost)+'</span>';
+      bhtml+='<span style="font-size:20px;font-weight:700;font-family:\'Geist Mono\',monospace;color:var(--cream)">'+money(cur.total_cost)+'</span>';
       bhtml+='<span style="font-size:11px;color:var(--dim)">'+cur.session_count+' sessions</span>';
       bhtml+='<span style="font-size:11px;color:var(--dim)">'+tok((cur.total_input_tokens||0)+(cur.total_output_tokens||0))+'t</span>';
       bhtml+='</div>';
@@ -536,13 +540,13 @@ async function load(){
       }).join("");
     }
     if($("p_turnlat")&&turnLat){
-      const lf=([n,l])=>'<div style="margin-bottom:14px"><div style="font-size:28px;font-weight:600;font-family:\'Fira Code\',\'SF Mono\',monospace;color:var(--cream);line-height:1.1">'+n+'</div><div style="font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">'+l+'</div></div>';
+      const lf=([n,l])=>'<div style="margin-bottom:14px"><div style="font-size:28px;font-weight:600;font-family:\'Geist Mono\',monospace;color:var(--cream);line-height:1.1">'+n+'</div><div style="font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">'+l+'</div></div>';
       $("p_turnlat").innerHTML=[
         [Math.round(turnLat.avg||0)+"ms","avg"],[Math.round(turnLat.p50||0)+"ms","p50"],[Math.round(turnLat.p95||0)+"ms","p95"]
       ].map(lf).join("");
     }
     if($("p_web")&&webUsage){
-      const lf=([n,l])=>'<div style="margin-bottom:14px"><div style="font-size:28px;font-weight:600;font-family:\'Fira Code\',\'SF Mono\',monospace;color:var(--cream);line-height:1.1">'+n+'</div><div style="font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">'+l+'</div></div>';
+      const lf=([n,l])=>'<div style="margin-bottom:14px"><div style="font-size:28px;font-weight:600;font-family:\'Geist Mono\',monospace;color:var(--cream);line-height:1.1">'+n+'</div><div style="font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">'+l+'</div></div>';
       $("p_web").innerHTML=[
         [(webUsage.searches||0).toLocaleString(),"searches"],[(webUsage.fetches||0).toLocaleString(),"fetches"],[(webUsage.sessions_with_web||0),"sessions"]
       ].map(lf).join("");
