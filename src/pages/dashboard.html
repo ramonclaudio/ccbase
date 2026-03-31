@@ -171,7 +171,6 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="row">
   <div class="c" data-w="proj_sessions"><h2>Projects by Sessions</h2><div id="p_sess"></div></div>
   <div class="c" data-w="proj_tokens"><h2>Projects by Tokens</h2><div id="p_cost"></div></div>
-  <div class="c" data-w="tokens_project"><h2>Tokens by Project</h2><div id="p_tokens"></div></div>
 </div>
 <div class="row two">
 </div>
@@ -222,7 +221,7 @@ const F=s=>fetch(s).then(r=>r.json());
 const WIDGETS={
   "Overview":{search_bar:"Search & Filters"},
   "Activity":{sessions_day:"Sessions per Day",messages_day:"Messages per Day",hour_of_day:"Hour of Day",duration_dist:"Session Duration",heatmap:"Activity Heatmap"},
-  "Projects":{proj_sessions:"Projects by Sessions",proj_tokens:"Projects by Tokens",health:"Project Health",tokens_project:"Tokens by Project"},
+  "Projects":{proj_sessions:"Projects by Sessions",proj_tokens:"Projects by Tokens",health:"Project Health"},
   "Current Work":{tasks:"Tasks",wip:"Work in Progress",recent_sessions:"Recent Sessions"},
   "Commits":{recent_commits:"Recent Commits",commits_day:"Commits per Day",commit_types:"Commit Types"},
   "Cost & Models":{billing:"Billing Blocks",tokens_model:"Tokens by Model"},
@@ -231,7 +230,7 @@ const WIDGETS={
   "Usage":{lifetime_skills:"Skill Usage"},
   "Insights":{facet_outcomes:"Session Outcomes",facet_helpfulness:"Claude Helpfulness",facet_list:"Session Insights"}
 };
-const DEFAULT_HIDDEN=new Set(["tool_errors","tokens_project"]);
+const DEFAULT_HIDDEN=new Set(["tool_errors"]);
 
 function getHidden(){
   const raw=localStorage.getItem("hidden_widgets");
