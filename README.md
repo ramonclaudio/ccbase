@@ -6,7 +6,8 @@
 
 Local analytics dashboard and chat history viewer for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Turns your conversation history into a searchable database with a live web dashboard, cost tracking, and full session replay.
 
-All data stays on your machine. Zero runtime dependencies. No API calls, no telemetry, no accounts.
+> [!IMPORTANT]
+> All data stays on your machine. Zero runtime dependencies. No API calls, no telemetry, no accounts.
 
 <!-- Add screenshots/GIFs here after first deploy -->
 <!-- ![Dashboard](docs/dashboard.png) -->
@@ -43,13 +44,8 @@ bun run build
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Or skip the build and run directly:
-
-```bash
-bun run src/index.ts serve
-```
-
-First run auto-ingests if no database exists.
+> [!TIP]
+> Skip the build and run directly with `bun run src/index.ts serve`. First run auto-ingests if no database exists.
 
 ## Requirements
 
@@ -90,12 +86,16 @@ claude-pulse ingest           # Parse ~/.claude/ data into SQLite
 claude-pulse ingest --force   # Drop everything and re-ingest from scratch
 ```
 
+> [!WARNING]
+> `ingest --force` drops all tables and rebuilds from scratch. Your `~/.claude/` data is never modified, but the local database is wiped.
+
 ## What It Tracks
 
-### Dashboard Widgets
+<details>
+<summary><strong>Dashboard Widgets</strong></summary>
 
 | Category | Widgets |
-|---|---|
+|:---|:---|
 | Activity | Sessions per day, messages per day, hour of day distribution, session duration histogram, activity heatmap |
 | Projects | Sessions by project, tokens by project, project health and staleness |
 | Current Work | Tasks (in progress/pending/done), work in progress (dirty repos, stashes), recent sessions |
@@ -107,9 +107,14 @@ claude-pulse ingest --force   # Drop everything and re-ingest from scratch
 | Infrastructure | MCP server usage, web search/fetch counts |
 | Insights | Session outcomes, Claude helpfulness ratings, session summaries |
 
-### Stats Bar Metrics
+</details>
+
+<details>
+<summary><strong>Stats Bar Metrics</strong></summary>
 
 Sessions, commits, projects, tasks (done/wip/pending), API value, total tokens, messages, tool calls, thinking blocks, agents, errors, plan mode sessions, cache hit %, turn latency, total coding time, current streak, startups, first use date.
+
+</details>
 
 ### Chat History Viewer
 
@@ -150,15 +155,18 @@ Dark and light mode, toggled via the button in the header. Defaults to your OS p
 
 ### Data Flow
 
-```
-~/.claude/projects/*/*.jsonl    ─┐
-~/.claude/projects/*/sessions-index.json ─┤
-~/.claude/tasks/                ─┤
-~/.claude/teams/                ─┤  ingest   ┌──────────┐  serve   ┌─────────┐
-~/.claude/usage-data/facets/    ─┼─────────> │ SQLite   │ ───────> │ Browser │
-~/.claude/stats-cache.json      ─┤           │ analyzer │          │ :3000   │
-~/.claude.json                  ─┤           │ .db      │          └─────────┘
-~/Developer/**/.git             ─┘           └──────────┘
+```mermaid
+graph LR
+    A["~/.claude/projects/*.jsonl"] --> I["ingest"]
+    B["sessions-index.json"] --> I
+    C["~/.claude/tasks/"] --> I
+    D["~/.claude/teams/"] --> I
+    E["usage-data/facets/"] --> I
+    F["stats-cache.json"] --> I
+    G["~/.claude.json"] --> I
+    H["~/Developer/**/.git"] --> I
+    I --> DB[("SQLite analyzer.db")]
+    DB --> S["Browser :3000"]
 ```
 
 ### Ground Truth
@@ -169,10 +177,13 @@ The `sessions` table (from `sessions-index.json`) provides metadata that doesn't
 
 ### Database
 
-Single SQLite file at `data/analyzer.db`. Schema:
+Single SQLite file at [`data/analyzer.db`](data/). See [schema](src/db/schema.ts) for full DDL.
+
+<details>
+<summary><strong>Tables</strong></summary>
 
 | Table | Purpose |
-|---|---|
+|:---|:---|
 | `conversation_messages` | Every message from every conversation (300K+ rows). The source of truth for tokens, tool calls, errors, thinking blocks. |
 | `sessions` | Session metadata from sessions-index.json. Project path, duration, lines changed, git context, PR data. |
 | `commits` | Git commit history from your repos. Hash, author, date, conventional commit type/scope. |
@@ -185,13 +196,21 @@ Single SQLite file at `data/analyzer.db`. Schema:
 | `github_repos` | Maps GitHub repo slugs to local filesystem paths. |
 | `conversation_fts` | FTS5 full-text index on conversation content. Powers search. |
 
+</details>
+
 ### Ingestion Performance
 
-A typical ingest processes 300K+ messages in ~20 seconds. The conversation step is the heaviest (stream-parsing all JSONL files). Git operations have 10-15 second timeouts to prevent hangs on unreachable repos. Use `--force` to rebuild from scratch.
+A typical ingest processes 300K+ messages in ~20 seconds. The conversation step is the heaviest (stream-parsing all JSONL files). Git operations have 10-15 second timeouts to prevent hangs on unreachable repos.
 
 ## Raw SQL Access
 
-The database is the API. Query it directly:
+The database is the API. Query it directly.
+
+> [!NOTE]
+> Only `SELECT`, `PRAGMA`, and `EXPLAIN` queries are allowed.
+
+<details>
+<summary><strong>Example queries</strong></summary>
 
 ```bash
 # Sessions by project this month
@@ -212,14 +231,14 @@ claude-pulse sql "SELECT SUBSTR(datetime(timestamp,'localtime'),1,10) as day,
   GROUP BY day ORDER BY day DESC LIMIT 7"
 ```
 
-Only `SELECT`, `PRAGMA`, and `EXPLAIN` queries are allowed.
+</details>
 
 ## Stack
 
 Zero runtime dependencies. Everything is built on Bun primitives.
 
 | Layer | Technology |
-|---|---|
+|:---|:---|
 | Runtime | [Bun](https://bun.sh) |
 | Database | SQLite via `bun:sqlite` (WAL mode, 128MB cache, 1GB mmap) |
 | Server | `Bun.serve()` with routes object |
@@ -231,15 +250,16 @@ Zero runtime dependencies. Everything is built on Bun primitives.
 
 ## Data Privacy
 
-Claude Pulse is read-only against your `~/.claude/` directory. It never modifies Claude Code's files. The SQLite database and any exported HTML stay in the `data/` directory of the project.
+> [!IMPORTANT]
+> Claude Pulse is read-only against your `~/.claude/` directory. It never modifies Claude Code's files.
 
-No data leaves your machine. No network requests except `localhost` for the dashboard. No telemetry, no analytics, no tracking.
+The SQLite database and any exported HTML stay in the `data/` directory of the project. No data leaves your machine. No network requests except `localhost` for the dashboard.
 
 ## Contributing
 
 PRs welcome. The codebase is 34 files, ~3K lines of TypeScript, and two HTML pages.
 
-```
+```text
 src/
   index.ts              CLI entry point
   commands/             Command handlers (serve, log, search, etc.)
@@ -248,6 +268,8 @@ src/
   pages/                Dashboard and chat viewer HTML
   utils/                Dates, formatting, git, syntax highlighting, path helpers
 ```
+
+See [`src/index.ts`](src/index.ts) for the entry point, [`src/db/schema.ts`](src/db/schema.ts) for the database schema, and [`src/commands/serve.ts`](src/commands/serve.ts) for all 40+ API endpoints.
 
 ## License
 
