@@ -17,17 +17,19 @@ Reads `~/.claude/` and gives you:
 - Project health across all repos
 - Team tasks, skill usage, and cache efficiency
 
-## Quick Start
+## Install
+
+```bash
+bun add -g @ramonclaudio/ccbase
+```
+
+Or clone and run from source:
 
 ```bash
 git clone https://github.com/ramonclaudio/ccbase.git
 cd ccbase
 bun install
-
-# Ingest your Claude Code data (~20s for 300K+ messages)
 bun run ingest
-
-# Launch the dashboard
 bun start
 ```
 
