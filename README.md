@@ -35,40 +35,32 @@ Open [http://localhost:3847](http://localhost:3847). First run auto-ingests if n
 
 ## Commands
 
-### Dashboard and Chat
-
 ```bash
-ccbase serve [port]     # Live dashboard + chat viewer (default: 3847)
-ccbase export [path]    # Static HTML snapshot of the dashboard
+# Scripts
+bun start                       # Dashboard + chat viewer on :3847
+bun run dev                     # Same, with hot reload
+bun run ingest                  # Parse ~/.claude/ into SQLite
+
+# CLI
+bun run src/index.ts log              # Today's sessions by project
+bun run src/index.ts log --yesterday  # Yesterday
+bun run src/index.ts log --week       # This week
+bun run src/index.ts log 2026-03-15   # Specific date
+
+bun run src/index.ts tasks            # Open tasks across projects/teams
+bun run src/index.ts tasks --done     # Recently completed
+
+bun run src/index.ts wip              # Dirty repos, stashes, active sessions
+bun run src/index.ts progress         # Commits and tasks shipped this week
+
+bun run src/index.ts search "query"   # Full-text search across conversations
+bun run src/index.ts sql "SELECT ..." # Raw SQL (read-only)
+
+bun run src/index.ts export [path]    # Static HTML snapshot
+bun run src/index.ts ingest --force   # Drop and re-ingest from scratch
 ```
 
-### CLI Analytics
-
-```bash
-ccbase log              # Today's sessions grouped by project
-ccbase log --yesterday  # Yesterday's sessions
-ccbase log --week       # This week's sessions
-ccbase log 2026-03-15   # Sessions for a specific date
-
-ccbase tasks            # Open tasks across all projects/teams
-ccbase tasks --done     # Recently completed tasks
-
-ccbase wip              # Work in progress: dirty repos, stashes, active sessions
-ccbase progress         # What shipped this week: commits, completed tasks
-
-ccbase search "query"   # Full-text search across all conversations
-ccbase sql "SELECT ..." # Raw SQL against the database
-```
-
-### Data Management
-
-```bash
-ccbase ingest           # Parse ~/.claude/ data into SQLite
-ccbase ingest --force   # Drop everything and re-ingest from scratch
-```
-
-> [!WARNING]
-> `ingest --force` drops all tables and rebuilds from scratch. Your `~/.claude/` data is never modified, but the local database is wiped.
+`ingest --force` wipes the local database. Your `~/.claude/` data is never modified.
 
 ## What It Tracks
 
@@ -109,7 +101,7 @@ ccbase ingest --force   # Drop everything and re-ingest from scratch
 Scans `~/Developer` for git repos by default. Override with `CCBASE_DEV_DIR`:
 
 ```bash
-CCBASE_DEV_DIR=~/projects ./dist/ccbase ingest
+CCBASE_DEV_DIR=~/projects bun run ingest
 ```
 
 Finds repos at `$CCBASE_DEV_DIR/*/` and `$CCBASE_DEV_DIR/*/*/`.
@@ -186,18 +178,18 @@ The database is the API. Read-only: `SELECT`, `PRAGMA`, and `EXPLAIN` only.
 
 ```bash
 # Sessions by project this month
-ccbase sql "SELECT project_path, COUNT(*) as sessions
+bun run src/index.ts sql "SELECT project_path, COUNT(*) as sessions
   FROM sessions WHERE started_at > strftime('%s','2026-03-01')*1000
   GROUP BY project_path ORDER BY sessions DESC"
 
 # Most error-prone tools
-ccbase sql "SELECT tool_name, COUNT(*) as calls,
+bun run src/index.ts sql "SELECT tool_name, COUNT(*) as calls,
   SUM(CASE WHEN is_error=1 THEN 1 ELSE 0 END) as errors
   FROM conversation_messages WHERE tool_name IS NOT NULL
   GROUP BY tool_name ORDER BY errors DESC LIMIT 10"
 
 # Daily token spend
-ccbase sql "SELECT SUBSTR(datetime(timestamp,'localtime'),1,10) as day,
+bun run src/index.ts sql "SELECT SUBSTR(datetime(timestamp,'localtime'),1,10) as day,
   SUM(input_tokens+output_tokens) as tokens
   FROM conversation_messages WHERE timestamp LIKE '20%'
   GROUP BY day ORDER BY day DESC LIMIT 7"
