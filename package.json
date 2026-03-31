@@ -1,5 +1,5 @@
 {
-  "name": "ccbase",
+  "name": "@ramonclaudio/ccbase",
   "version": "0.1.0",
   "description": "Local analytics dashboard, searchable chat history, cost tracking, and session replay for Claude Code",
   "type": "module",
