@@ -27,6 +27,12 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Verify dependency signatures
+        run: npm audit signatures
+
       - name: Node setup (for npm publish)
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
