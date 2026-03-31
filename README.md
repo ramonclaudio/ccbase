@@ -251,7 +251,3 @@ The SQLite database and any exported HTML stay in the `data/` directory of the p
 ## License
 
 MIT
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=ramonclaudio/claude-pulse&type=Date)](https://star-history.com/#ramonclaudio/claude-pulse&Date)
