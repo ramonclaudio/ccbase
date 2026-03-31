@@ -27,8 +27,8 @@ bun install
 # Ingest your Claude Code data (~20s for 300K+ messages)
 bun run ingest
 
-# Launch the dashboard (hot reload)
-bun run dev
+# Launch the dashboard
+bun start
 ```
 
 Open [http://localhost:3847](http://localhost:3847). First run auto-ingests if no database exists.
