@@ -247,22 +247,6 @@ Zero runtime dependencies. Everything is built on Bun primitives.
 
 The SQLite database and any exported HTML stay in the `data/` directory of the project. No data leaves your machine. No network requests except `localhost` for the dashboard.
 
-## Contributing
-
-PRs welcome. The codebase is ~45 files, ~3K lines of TypeScript, and two HTML pages.
-
-```text
-src/
-  index.ts              CLI entry point
-  commands/             Command handlers (serve, log, search, etc.)
-  db/                   SQLite connection, schema, query helpers
-  ingest/               Data parsers (conversations, sessions, projects, tasks, etc.)
-  pages/                Dashboard and chat viewer HTML
-  utils/                Dates, formatting, git, syntax highlighting, path helpers
-```
-
-See [`src/index.ts`](src/index.ts) for the entry point, [`src/db/schema.ts`](src/db/schema.ts) for the database schema, and [`src/commands/serve.ts`](src/commands/serve.ts) for all 40+ API endpoints.
-
 ## License
 
 MIT
