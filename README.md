@@ -4,10 +4,7 @@
 [![Bun](https://img.shields.io/badge/bun-%23847000.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-Your Claude Code session data, queryable. Local analytics dashboard, searchable chat history, cost tracking, and full session replay.
-
-> [!IMPORTANT]
-> All data stays on your machine. Zero runtime dependencies. No API calls, no telemetry, no accounts.
+Local analytics dashboard, searchable chat history, cost tracking, and full session replay for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Requires [Bun](https://bun.sh) v1.3+. All data stays on your machine.
 
 ![ccbase](.github/assets/ccbase-promo.png)
 
@@ -23,30 +20,18 @@ Reads `~/.claude/` and gives you:
 ## Quick Start
 
 ```bash
-# Install
 git clone https://github.com/ramonclaudio/ccbase.git
 cd ccbase
 bun install
 
-# Build
-bun run build
+# Ingest your Claude Code data (~20s for 300K+ messages)
+bun run ingest
 
-# Ingest your Claude Code data (takes ~20s for 300K+ messages)
-./dist/ccbase ingest
-
-# Launch the dashboard
-./dist/ccbase serve
+# Launch the dashboard (hot reload)
+bun run dev
 ```
 
-Open [http://localhost:3847](http://localhost:3847).
-
-> [!TIP]
-> For development with hot reload: `bun run dev`. First run auto-ingests if no database exists.
-
-## Requirements
-
-- [Bun](https://bun.sh) v1.3+
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed with conversation history at `~/.claude/`
+Open [http://localhost:3847](http://localhost:3847). First run auto-ingests if no database exists.
 
 ## Commands
 

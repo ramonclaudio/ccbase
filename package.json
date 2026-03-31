@@ -8,6 +8,7 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch run src/index.ts serve",
+    "ingest": "bun run src/index.ts ingest",
     "build": "bun build --compile --bytecode --minify --sourcemap --define __BUILD_TIME__=$(date +%s) --define __VERSION__='\"'$(node -p 'require(\"./package.json\").version')'\"' ./src/index.ts --outfile=./dist/ccbase",
     "build:bundle": "bun build --bytecode --target=bun --minify --sourcemap --outdir=./dist ./src/index.ts"
   },
