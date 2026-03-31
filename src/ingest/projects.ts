@@ -4,13 +4,7 @@ import type { Database } from "bun:sqlite";
 import { DEVELOPER_DIR, listDirs } from "../utils/paths.ts";
 import { isGitRepo, gitState, gitRecentCommits } from "../utils/git.ts";
 
-const SKIP_DIRS = new Set(["prompts"]);
-const TYPED_PARENTS = new Map([
-  ["private", "private"],
-  ["public", "public"],
-  ["forks", "fork"],
-  ["refs", "ref"],
-]);
+const SKIP_DIRS = new Set(["prompts", "node_modules", ".Trash"]);
 
 function getGitAuthorNames(): Set<string> {
   try {
@@ -65,22 +59,26 @@ function listProjects(): { path: string; type: string }[] {
     if (name.startsWith(".")) continue;
     if (SKIP_DIRS.has(name)) continue;
 
-    const parentPath = DEVELOPER_DIR + "/" + name;
-    const projectType = TYPED_PARENTS.get(name);
+    const fullPath = DEVELOPER_DIR + "/" + name;
 
-    if (projectType) {
-      try {
-        const children = listDirs(parentPath);
-        for (const child of children) {
-          if (child.startsWith(".")) continue;
-          projects.push({ path: parentPath + "/" + child, type: projectType });
-        }
-      } catch (e) {
-        console.error(`Failed to scan ${parentPath}:`, e);
-      }
-    } else {
-      projects.push({ path: parentPath, type: "other" });
+    // If it's a git repo, add it directly
+    if (isGitRepo(fullPath)) {
+      projects.push({ path: fullPath, type: name });
+      continue;
     }
+
+    // Otherwise scan one level deeper for nested repos (e.g. ~/Developer/work/project)
+    try {
+      const children = listDirs(fullPath);
+      for (const child of children) {
+        if (child.startsWith(".")) continue;
+        if (SKIP_DIRS.has(child)) continue;
+        const childPath = fullPath + "/" + child;
+        if (isGitRepo(childPath)) {
+          projects.push({ path: childPath, type: name });
+        }
+      }
+    } catch { continue; }
   }
 
   return projects;

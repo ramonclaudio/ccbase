@@ -5,10 +5,9 @@ const HOME = Bun.env.HOME!;
 export const CLAUDE_HOME = HOME + "/.claude";
 export const CLAUDE_CONFIG = HOME + "/.claude.json";
 export const PROJECTS_DIR = CLAUDE_HOME + "/projects";
-export const HISTORY_FILE = CLAUDE_HOME + "/history.jsonl";
 export const STATS_FILE = CLAUDE_HOME + "/stats-cache.json";
 export const TASKS_DIR = CLAUDE_HOME + "/tasks";
-export const DEVELOPER_DIR = HOME + "/Developer";
+export const DEVELOPER_DIR = Bun.env.ANALYZER_DEV_DIR || HOME + "/Developer";
 export const FACETS_DIR = CLAUDE_HOME + "/usage-data/facets";
 
 /** Project root data directory (adjacent to src/) */
