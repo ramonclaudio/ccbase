@@ -153,7 +153,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 </div>
 <div class="section">Status</div>
 <div class="row">
-  <div class="c span2" data-w="heatmap"><h2>Activity Heatmap</h2><div class="hm" id="heatmap"></div><div class="lg"><span class="d" style="background:#1a1714;border:1px solid #2a2a2a"></span>0<span class="d" style="background:#3d2a1f"></span><span class="d" style="background:#7a4a30"></span><span class="d" style="background:#b86840"></span><span class="d" style="background:#d97757"></span>more</div></div>
+  <div class="c span2" data-w="heatmap"><h2>Activity Heatmap</h2><div class="hm" id="heatmap"></div><div class="lg"><span class="d" style="background:var(--charcoal);border:1px solid var(--border)"></span>0<span class="d" style="background:#828179"></span><span class="d" style="background:#a07060"></span><span class="d" style="background:#CC785C"></span><span class="d" style="background:#e8a080"></span>more</div></div>
   <div class="c" data-w="cache_efficiency"><h2>Cache Efficiency</h2><div id="p_cache"></div></div>
 </div>
 <div class="row">
@@ -431,7 +431,7 @@ async function load(){
   const dts=Object.keys(hmap).sort();
   if(dts.length){const mx=Math.max(...Object.values(hmap));const s=new Date(dts[0]+"T00:00:00"),en=new Date(dts[dts.length-1]+"T00:00:00");
   for(let d=new Date(s);d<=en;d.setDate(d.getDate()+1)){const k=d.toISOString().slice(0,10),v=hmap[k]||0;const q=quantize(v,mx);
-  const isDark=document.documentElement.dataset.theme!=="light";const cl=isDark?["#1a1714","#3d2a1f","#7a4a30","#b86840","#d97757"][q]:["#f0ece6","#e8d0be","#d4a27f","#c6813f","#b86030"][q];const el=document.createElement("div");el.className="d";el.style.background=cl;el.title=k+": "+v+" sessions";el.onclick=()=>setDay(k);hm.appendChild(el)}}}
+  const s=getComputedStyle(document.documentElement);const cl=[s.getPropertyValue('--charcoal').trim(),"#828179","#a07060","#CC785C","#e8a080"][q];const el=document.createElement("div");el.className="d";el.style.background=cl;el.title=k+": "+v+" sessions";el.onclick=()=>setDay(k);hm.appendChild(el)}}}
 
   // WIP
   if($("wip"))$("wip").innerHTML=gitState.length?gitState.map(g=>'<div class="wip-row"><span class="pj">'+e(nm(g.project_path))+'</span><span class="info">'+g.dirty_file_count+' dirty'+(g.stash_count?' \xb7 '+g.stash_count+' stash':'')+(g.current_branch?' \xb7 '+e(g.current_branch):'')+'</span></div>').join(""):'<div style="color:var(--dim)">all clean</div>';
