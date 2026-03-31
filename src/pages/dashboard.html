@@ -157,7 +157,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
   <div class="c" data-w="cache_efficiency"><h2>Cache Efficiency</h2><div id="p_cache"></div></div>
 </div>
 <div class="row">
-  <div class="c" data-w="tasks"><h2>Tasks</h2><div class="tabs"><span class="tab on" data-f="w">In Progress</span><span class="tab" data-f="p">Pending</span><span class="tab" data-f="d">Done</span></div><div class="sc" id="tasks"></div></div>
+  <div class="c" data-w="tasks"><h2>Tasks</h2><div class="tabs"><span class="tab on" data-f="w">In Progress</span><span class="tab" data-f="p">Pending</span><span class="tab" data-f="d">Done</span></div><div class="sc" id="tasks" style="max-height:180px"></div></div>
   <div class="c" data-w="billing"><h2>Billing Blocks</h2><div id="p_billing"></div></div>
   <div class="c" data-w="tokens_model"><h2>Tokens by Model</h2><div id="p_models"></div></div>
 </div>
@@ -347,7 +347,8 @@ function donut(cv,data,key){
   data.forEach((d,i)=>{const sl=(d.n/tot)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a,a+sl);ctx.closePath();ctx.fillStyle=cs[i%cs.length];ctx.fill();a+=sl});
   ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--card').trim();ctx.fill();
   ctx.font="10px 'Geist Mono',monospace";
-  data.forEach((d,i)=>{const y=14+i*20,x=130;ctx.fillStyle=cs[i%cs.length];ctx.fillRect(x,y-7,8,8);ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--dim').trim();ctx.fillText(d[key]+" ("+d.n+")",x+14,y)});
+  const cols=data.length>5?2:1;const perCol=Math.ceil(data.length/cols);const colW=cols>1?Math.floor((W-130)/cols):W-130;
+  data.forEach((d,i)=>{const col=Math.floor(i/perCol);const row=i%perCol;const y=14+row*18,x=130+col*colW;ctx.fillStyle=cs[i%cs.length];ctx.fillRect(x,y-7,8,8);ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--dim').trim();ctx.fillText(d[key]+" ("+d.n+")",x+14,y)});
 }
 
 function bars(el,data,nk,vk,maxW,color,fmt,clickable){
