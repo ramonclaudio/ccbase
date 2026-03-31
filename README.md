@@ -23,19 +23,6 @@ Claude Code stores rich data locally but gives you no way to see it. Claude Puls
 - Project health across all your repos
 - Team task status and skill error rates
 
-### How it compares
-
-| Feature | Claude Pulse | ccusage | Sniffly | Confabulous |
-|---|---|---|---|---|
-| Web dashboard | Yes | No (CLI only) | Yes | Yes |
-| Chat history replay | Yes (with diffs) | No | No | Yes |
-| Tool/skill error rates | Yes | No | Yes | No |
-| Zero dependencies | Yes (Bun only) | Node + deps | Python + deps | Docker |
-| Local-only (no server) | Yes | Yes | No | No |
-| Raw SQL access | Yes | No | No | No |
-| Git commit analytics | Yes | No | No | Yes |
-| Syntax-highlighted diffs | Yes | No | No | No |
-
 ## Quick Start
 
 ```bash
@@ -261,11 +248,6 @@ src/
   pages/                Dashboard and chat viewer HTML
   utils/                Dates, formatting, git, syntax highlighting, path helpers
 ```
-
-## Related
-
-- [ccusage](https://github.com/ryoppippi/ccusage) - CLI token/cost tracker for Claude Code
-- [awesome-claude-code](https://github.com/hesreallyhim/awesome-claude-code) - Curated list of Claude Code tools
 
 ## License
 
