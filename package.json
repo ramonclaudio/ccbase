@@ -1,10 +1,29 @@
 {
   "name": "ccbase",
   "version": "0.1.0",
+  "description": "Local analytics dashboard, searchable chat history, cost tracking, and session replay for Claude Code",
   "type": "module",
+  "license": "MIT",
+  "author": "Ray <hello@ramonclaudio.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ramonclaudio/ccbase.git"
+  },
+  "keywords": [
+    "claude-code",
+    "analytics",
+    "dashboard",
+    "sqlite",
+    "bun",
+    "cli"
+  ],
   "bin": {
     "ccbase": "./src/index.ts"
   },
+  "files": [
+    "src",
+    "data/.gitkeep"
+  ],
   "scripts": {
     "start": "bun run src/index.ts serve",
     "dev": "bun --watch run src/index.ts serve",
