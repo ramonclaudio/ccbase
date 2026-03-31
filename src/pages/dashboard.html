@@ -57,7 +57,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .dd.on{max-height:600px;opacity:1;padding:14px 18px;margin-bottom:12px}
 .dd h2{font-size:14px;color:var(--blue);text-transform:none;letter-spacing:0;margin-bottom:10px}
 .br .b{height:10px;border-radius:4px}
-.br .v{color:var(--faint);min-width:36px;text-align:right;flex-shrink:0;font-size:11px}
+.br .v{color:var(--faint);min-width:50px;text-align:right;flex-shrink:0;font-size:11px}
 .tk{font-size:12px;padding:6px 8px;border-bottom:none;display:flex;gap:8px;align-items:baseline;border-radius:8px;transition:background .12s ease}
 .tk:hover{background:var(--charcoal)}
 .tk:last-child{border:0}
@@ -462,7 +462,7 @@ async function load(){
         const d=new Date(b.block_start);
         const label=d.toLocaleDateString("en",{month:"short",day:"numeric"})+' '+d.toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit",hour12:false});
         const w=Math.round((b.total_cost||0)/bmax2*120);
-        return '<div class="br"><span class="nm" style="width:90px">'+label+'</span><span class="b" style="width:'+w+'px;background:var(--accent)"></span><span class="v">'+money(b.total_cost)+'</span><span class="v" style="color:var(--dim)">'+b.session_count+'s</span></div>';
+        return '<div class="br"><span class="nm">'+label+'</span><span class="b" style="width:'+w+'px;background:var(--accent)"></span><span class="v">'+money(b.total_cost)+'</span><span class="v" style="color:var(--dim)">'+b.session_count+'s</span></div>';
       }).join("");
     }
     $("p_billing").innerHTML=bhtml;
