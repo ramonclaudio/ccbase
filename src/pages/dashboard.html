@@ -405,8 +405,9 @@ async function load(){
   donut($("c_types"),types,"commit_type");
   bar($("c_cpd"),cpd,"d","total",(d)=>d.feats>d.fixes?"#788c5d":"#c46686");
 
-  if($("p_sess"))$("p_sess").innerHTML=projs.slice(0,12).map(d=>'<div class="proj-row" onclick="setProj(\''+d.project_path.replace(/'/g,"\\'")+'\')">'+'<span class="nm" style="width:auto;flex:1;min-width:0">'+e(nm(d.project_path))+'</span>'+'<span class="v" style="min-width:30px">'+d.sessions+'</span>'+'<span class="v" style="color:var(--dim);min-width:70px">'+dur(d.minutes)+'</span>'+'</div>').join("");
-  if($("p_cost"))$("p_cost").innerHTML=costProj.filter(c=>c.inp>0).slice(0,12).map(d=>'<div class="proj-row" onclick="setProj(\''+d.project_path.replace(/'/g,"\\'")+'\')">'+'<span class="nm" style="width:auto;flex:1;min-width:0">'+e(nm(d.project_path))+'</span>'+'<span class="v" style="min-width:90px">'+tok(d.inp)+' in / '+tok(d.outp)+' out</span>'+'</div>').join("");
+  const colHead=(cols)=>'<div class="proj-row" style="pointer-events:none;opacity:.5;font-size:9px;padding:0 8px 4px"><span class="nm" style="width:auto;flex:1;min-width:0">'+cols[0]+'</span>'+cols.slice(1).map(c=>'<span class="v" style="min-width:'+c[1]+'">'+c[0]+'</span>').join('')+'</div>';
+  if($("p_sess"))$("p_sess").innerHTML=colHead(["project",["sessions","30px"],["time","70px"]])+projs.slice(0,12).map(d=>'<div class="proj-row" onclick="setProj(\''+d.project_path.replace(/'/g,"\\'")+'\')">'+'<span class="nm" style="width:auto;flex:1;min-width:0">'+e(nm(d.project_path))+'</span>'+'<span class="v" style="min-width:30px">'+d.sessions+'</span>'+'<span class="v" style="color:var(--dim);min-width:70px">'+dur(d.minutes)+'</span>'+'</div>').join("");
+  if($("p_cost"))$("p_cost").innerHTML=colHead(["project",["tokens","90px"]])+costProj.filter(c=>c.inp>0).slice(0,12).map(d=>'<div class="proj-row" onclick="setProj(\''+d.project_path.replace(/'/g,"\\'")+'\')">'+'<span class="nm" style="width:auto;flex:1;min-width:0">'+e(nm(d.project_path))+'</span>'+'<span class="v" style="min-width:90px">'+tok(d.inp)+' in / '+tok(d.outp)+' out</span>'+'</div>').join("");
 
   // Branches
   if($("p_branches")){
@@ -500,9 +501,9 @@ async function load(){
   const heavyP=Promise.all([F("/api/tool-durations"),F("/api/turn-latency"),F("/api/web-usage")]);
 
   if($("p_models")){const mmax=Math.max(...tokenModels.map(m=>(m.inp||0)+(m.outp||0)),1);
-  $("p_models").innerHTML=tokenModels.map(m=>{const total=(m.inp||0)+(m.outp||0);return '<div class="proj-row"><span class="nm" style="width:auto;flex:1;min-width:0">'+e(nm(m.model||"?"))+'</span><span class="v" style="min-width:50px">'+tok(total)+'</span><span class="v" style="color:var(--dim);min-width:70px">'+m.msgs+' msgs</span></div>';}).join("");}
+  $("p_models").innerHTML=colHead(["model",["tokens","50px"],["messages","70px"]])+tokenModels.map(m=>{const total=(m.inp||0)+(m.outp||0);return '<div class="proj-row"><span class="nm" style="width:auto;flex:1;min-width:0">'+e(nm(m.model||"?"))+'</span><span class="v" style="min-width:50px">'+tok(total)+'</span><span class="v" style="color:var(--dim);min-width:70px">'+m.msgs+' msgs</span></div>';}).join("");}
 
-  if($("p_toolerr"))$("p_toolerr").innerHTML=toolErrors.map(t=>{const errStyle=t.errors>0?'color:var(--red)':'color:var(--dim)';return '<div class="proj-row"><span class="nm" style="width:auto;flex:1;min-width:0">'+e(t.tool_name)+'</span><span class="v" style="min-width:40px">'+t.calls+'</span><span class="v" style="'+errStyle+';min-width:50px">'+t.errors+' err</span></div>';}).join("");
+  if($("p_toolerr"))$("p_toolerr").innerHTML=colHead(["tool",["calls","40px"],["errors","50px"]])+toolErrors.map(t=>{const errStyle=t.errors>0?'color:var(--red)':'color:var(--dim)';return '<div class="proj-row"><span class="nm" style="width:auto;flex:1;min-width:0">'+e(t.tool_name)+'</span><span class="v" style="min-width:40px">'+t.calls+'</span><span class="v" style="'+errStyle+';min-width:50px">'+t.errors+' err</span></div>';}).join("");
 
   if($("p_cache")&&cacheStats){
     $("p_cache").innerHTML='<div class="stats" style="margin:0;gap:12px">'+
@@ -515,7 +516,7 @@ async function load(){
   // MCP usage (fast query, render immediately)
   if($("p_mcp")&&mcpUsage?.length){
     const mmax=Math.max(...mcpUsage.map(m=>m.calls||0),1);
-    $("p_mcp").innerHTML=mcpUsage.slice(0,10).map(m=>{
+    $("p_mcp").innerHTML=colHead(["server",["calls","40px"]])+mcpUsage.slice(0,10).map(m=>{
       const w=Math.round((m.calls||0)/mmax*130);
       return '<div class="proj-row"><span class="nm" style="width:auto;flex:1;min-width:0">'+e(m.mcp_server||"?")+'</span><span class="v" style="min-width:40px">'+m.calls+'</span></div>';
     }).join("");
@@ -529,7 +530,7 @@ async function load(){
   heavyP.then(([toolDur,turnLat,webUsage])=>{
     if($("p_tooldur")&&toolDur?.length){
       const tdmax=Math.max(...toolDur.map(t=>t.avg_ms||0),1);
-      $("p_tooldur").innerHTML=toolDur.slice(0,12).map(t=>{
+      $("p_tooldur").innerHTML=colHead(["tool",["avg","60px"],["count","40px"]])+toolDur.slice(0,12).map(t=>{
         const w=Math.round((t.avg_ms||0)/tdmax*130);
         return '<div class="proj-row"><span class="nm" style="width:auto;flex:1;min-width:0">'+e(t.tool_name)+'</span><span class="v" style="min-width:60px">'+Math.round(t.avg_ms||0)+'ms</span><span class="v" style="color:var(--dim);min-width:40px">'+t.calls+'x</span></div>';
       }).join("");
@@ -552,7 +553,7 @@ async function load(){
   Promise.all([F("/api/skill-errors"),F("/api/app-meta")]).then(([skillErrors,appMeta])=>{
     if($("p_ltskills")&&skillErrors?.length){
       const smax=Math.max(...skillErrors.map(s=>s.calls||0),1);
-      $("p_ltskills").innerHTML=skillErrors.map(s=>{
+      $("p_ltskills").innerHTML=colHead(["skill",["calls","40px"],["errors","50px"]])+skillErrors.map(s=>{
         const w=Math.round((s.calls||0)/smax*130);
         const errStyle=s.errors>0?'color:var(--red)':'color:var(--dim)';
         return '<div class="proj-row"><span class="nm" style="width:auto;flex:1;min-width:0">'+e(s.skill_name)+'</span><span class="v" style="min-width:40px">'+s.calls+'</span><span class="v" style="'+errStyle+';min-width:50px">'+s.errors+' err</span></div>';
