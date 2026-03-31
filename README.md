@@ -9,9 +9,6 @@ Local analytics dashboard and chat history viewer for [Claude Code](https://docs
 > [!IMPORTANT]
 > All data stays on your machine. Zero runtime dependencies. No API calls, no telemetry, no accounts.
 
-<!-- Add screenshots/GIFs here after first deploy -->
-<!-- ![Dashboard](docs/dashboard.png) -->
-<!-- ![Chat History](docs/chat.png) -->
 
 ## Why Claude Pulse
 
@@ -45,7 +42,7 @@ bun run build
 Open [http://localhost:3847](http://localhost:3847).
 
 > [!TIP]
-> Skip the build and run directly with `bun run src/index.ts serve`. First run auto-ingests if no database exists.
+> For development with hot reload: `bun run dev`. First run auto-ingests if no database exists.
 
 ## Requirements
 
@@ -100,7 +97,7 @@ claude-pulse ingest --force   # Drop everything and re-ingest from scratch
 | Projects | Sessions by project, tokens by project, project health and staleness |
 | Current Work | Tasks (in progress/pending/done), work in progress (dirty repos, stashes), recent sessions |
 | Commits | Recent commits, commits per day, commit type breakdown (feat/fix/refactor/chore) |
-| Cost | Billing blocks (5-hour windows), tokens by model, tokens by project, total API value |
+| Cost | Billing blocks (5-hour windows), tokens by model, total API value |
 | Tools | Tool calls per day, tool duration, tool error rates (Bash, Read, Edit, Write, Grep, etc.) |
 | Skills | Skill invocation counts and error rates (commit, teams, simplify, audit, etc.) |
 | Performance | Turn latency (avg/P50/P95), cache efficiency (hit rate, tokens saved, cost saved) |
@@ -109,12 +106,6 @@ claude-pulse ingest --force   # Drop everything and re-ingest from scratch
 
 </details>
 
-<details>
-<summary><strong>Stats Bar Metrics</strong></summary>
-
-Sessions, commits, projects, tasks (done/wip/pending), API value, total tokens, messages, tool calls, thinking blocks, agents, errors, plan mode sessions, cache hit %, turn latency, total coding time, current streak, startups, first use date.
-
-</details>
 
 ### Chat History Viewer
 
@@ -243,6 +234,7 @@ Zero runtime dependencies. Everything is built on Bun primitives.
 | Database | SQLite via `bun:sqlite` (WAL mode, 128MB cache, 1GB mmap) |
 | Server | `Bun.serve()` with routes object |
 | Frontend | Vanilla HTML/CSS/JS (no framework, no bundler) |
+| Typography | [Geist Mono](https://vercel.com/font) (9 weights, served locally) |
 | Charts | Canvas API (no chart library) |
 | Syntax highlighting | Custom zero-dep tokenizer (JS/TS, Python, Bash, SQL, Go, Rust, CSS, JSON, YAML, Diff) |
 | Markdown | Custom zero-dep parser (headings, lists, tables, code blocks, inline formatting) |
@@ -257,7 +249,7 @@ The SQLite database and any exported HTML stay in the `data/` directory of the p
 
 ## Contributing
 
-PRs welcome. The codebase is 34 files, ~3K lines of TypeScript, and two HTML pages.
+PRs welcome. The codebase is ~45 files, ~3K lines of TypeScript, and two HTML pages.
 
 ```text
 src/
