@@ -9,6 +9,7 @@ Local analytics dashboard and chat history viewer for [Claude Code](https://docs
 > [!IMPORTANT]
 > All data stays on your machine. Zero runtime dependencies. No API calls, no telemetry, no accounts.
 
+![Claude Pulse](.github/assets/claude-pulse-promo.png)
 
 ## Why Claude Pulse
 
