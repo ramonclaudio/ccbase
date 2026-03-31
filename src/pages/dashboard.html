@@ -44,8 +44,8 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .chip.on{display:inline-flex}
 .filter button{background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:10px;transition:all .12s ease}
 .filter button:hover{background:var(--accent);color:#fff}
-.dd{background:var(--card);border:none;border-left:3px solid var(--blue);border-radius:12px;padding:14px 18px;margin-bottom:12px;display:none}
-.dd.on{display:block}
+.dd{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:8px;padding:14px 18px;margin-bottom:12px;max-height:0;overflow:hidden;opacity:0;transition:max-height .3s ease,opacity .2s ease,padding .3s ease,margin .3s ease;padding-top:0;padding-bottom:0;margin-bottom:0}
+.dd.on{max-height:600px;opacity:1;padding:14px 18px;margin-bottom:12px}
 .dd h2{font-size:14px;color:var(--blue);text-transform:none;letter-spacing:0;margin-bottom:10px}
 .br .b{height:10px;border-radius:4px}
 .br .v{color:var(--faint);min-width:36px;text-align:right;flex-shrink:0;font-size:11px}
@@ -302,6 +302,7 @@ async function drilldown(){
     return '<div class="sn" onclick="window.open(\'/chat?s='+s.id+'\',\'_blank\')"><span class="t" style="width:100px">'+dt+'</span><span class="pj">'+e(nm(s.project_path))+'</span><span class="pr">'+e(s.first_prompt)+'</span><span class="m">'+dur(s.duration_minutes)+toks+'</span></div>';
   }).join("")||'<div style="color:var(--dim)">none</div>';
   $("dd").classList.add("on");
+  $("dd").scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function rRect(ctx,x,y,w,h,r){r=Math.min(r,w/2,h/2);if(h<1)return;ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();ctx.fill()}
