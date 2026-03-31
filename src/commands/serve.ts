@@ -62,7 +62,6 @@ interface ConversationAgg {
   cache_read_tokens: number; total_input: number; web_searches: number;
 }
 interface SessionAgg { total_lines: number; total_minutes: number }
-interface HistoryAgg { paste_rate: number; rewinds: number }
 interface CountRow { n: number }
 
 const PAGES_DIR = import.meta.dir + "/../pages";
@@ -70,7 +69,7 @@ let CORS = { "access-control-allow-origin": "http://localhost:3000" };
 const STRIP_XML_RE = /<(thinking|tool_use|tool_result)[^>]*>[\s\S]*?<\/\1>/g;
 
 const SQL_CONV_AGG = `SELECT
-  (SELECT COUNT(*) FROM sessions) as sessions,
+  (SELECT COUNT(DISTINCT session_id) FROM conversation_messages WHERE type IN ('user','assistant')) as sessions,
   COUNT(*) as total_lines,
   COUNT(CASE WHEN type IN ('user','assistant') THEN 1 END) as messages,
   COUNT(CASE WHEN tool_name IS NOT NULL THEN 1 END) as tool_calls,
@@ -98,11 +97,6 @@ const SQL_SESS_AGG = `SELECT
   COALESCE(SUM(CASE WHEN duration_minutes>0 THEN MIN(duration_minutes, 240) END),0) as total_minutes
 FROM sessions`;
 
-const SQL_HIST_AGG = `SELECT
-  COALESCE(ROUND(SUM(has_paste)*100.0/NULLIF(COUNT(*),0),1), 0) as paste_rate,
-  COALESCE(SUM(CASE WHEN display LIKE '%/rewind%' THEN 1 ELSE 0 END), 0) as rewinds
-FROM history_messages`;
-
 const statsCache = { data: null as Record<string, unknown> | null, ts: 0 };
 
 function getStats(q: QueryFn): Record<string, unknown> {
@@ -111,14 +105,15 @@ function getStats(q: QueryFn): Record<string, unknown> {
 
   const cm = q(SQL_CONV_AGG)[0] as ConversationAgg;
   const sess = q(SQL_SESS_AGG)[0] as SessionAgg;
-  const hist = q(SQL_HIST_AGG)[0] as HistoryAgg;
+
+  // Compute duration from conversation_messages for sessions missing from sessions-index
+  const cmDuration = q(`SELECT COALESCE(SUM(dur),0) as total FROM (SELECT session_id, MIN(ROUND((julianday(MAX(timestamp))-julianday(MIN(timestamp)))*1440),240) as dur FROM conversation_messages WHERE timestamp LIKE '20%' AND type IN ('user','assistant') GROUP BY session_id HAVING dur > 0)`)[0] as { total: number };
 
   const totalPromptTokens = (cm.cache_read_tokens ?? 0) + (cm.total_input ?? 0);
   const cacheHitPct = totalPromptTokens > 0
     ? Math.round(cm.cache_read_tokens * 1000 / totalPromptTokens) / 10
     : 0;
 
-  // Use native turn_duration records for avg latency
   const turnDurations = q(`SELECT AVG(duration_ms) as avg FROM conversation_messages WHERE subtype='turn_duration' AND duration_ms > 0 AND duration_ms < 600000`) as { avg: number | null }[];
   const avgTurnLatency = Math.round(turnDurations[0]?.avg ?? 0);
 
@@ -128,19 +123,17 @@ function getStats(q: QueryFn): Record<string, unknown> {
     totalConvLines: { n: cm.total_lines },
     commits: q(`SELECT COUNT(*) as n FROM commits`)[0],
     projects: q(`SELECT COUNT(*) as n FROM projects`)[0],
-    tasks: q(`SELECT status,COUNT(*) as n FROM tasks GROUP BY status`),
+    tasks: q(`SELECT status,COUNT(*) as n FROM tasks WHERE is_internal=0 GROUP BY status`),
     planValue: { n: cm.plan_value },
     totalTokens: { n: (cm.inp ?? 0) + (cm.outp ?? 0) },
     totalLines: { n: sess.total_lines },
-    totalMinutes: { n: sess.total_minutes },
+    totalMinutes: { n: cmDuration.total },
     toolCalls: { n: cm.tool_calls },
     thinkingBlocks: { n: cm.thinking_blocks },
     sidechainMsgs: { n: cm.sidechain_msgs },
     subagents: { n: cm.subagents },
     errors: { n: cm.errors },
-    pasteRate: { n: hist.paste_rate },
     planSessions: { n: cm.plan_sessions },
-    rewinds: { n: hist.rewinds },
     cacheHitPct: { n: cacheHitPct },
     webSearches: { n: cm.web_searches },
     avgTurnLatency: { n: avgTurnLatency },
@@ -163,7 +156,7 @@ function isConsecutiveDay(a: string, b: string): boolean {
 function computeStreaks(q: QueryFn): Record<string, unknown> {
   const now = Date.now();
   if (streaksCache.data && now - streaksCache.ts < 5000) return streaksCache.data;
-  const days = q(`SELECT date FROM daily_stats ORDER BY date`) as { date: string }[];
+  const days = q(`SELECT DISTINCT SUBSTR(datetime(MIN(timestamp),'localtime'),1,10) as date FROM conversation_messages WHERE timestamp LIKE '20%' AND type IN ('user','assistant') GROUP BY session_id ORDER BY date`) as { date: string }[];
   if (!days.length) return { current: 0, longest: 0, longestStart: "", longestEnd: "", totalDays: 0 };
 
   let longest = 1, longestStart = 0, longestEnd = 0, run = 1, runStart = 0;
@@ -204,16 +197,16 @@ export function serveCommand(args: string[]): void {
       "/chat": Bun.file(PAGES_DIR + "/chat.html"),
 
       "/api/stats": () => Response.json(getStats(q), { headers: CORS }),
-      "/api/daily": () => Response.json(q(`SELECT date,session_count,message_count,tool_call_count FROM daily_stats ORDER BY date`), { headers: CORS }),
+      "/api/daily": () => Response.json(q(`SELECT SUBSTR(datetime(timestamp,'localtime'),1,10) as date,COUNT(DISTINCT session_id) as session_count,COUNT(*) as message_count,SUM(CASE WHEN tool_name IS NOT NULL THEN 1 ELSE 0 END) as tool_call_count FROM conversation_messages WHERE timestamp LIKE '20%' AND type IN ('user','assistant') GROUP BY date ORDER BY date`), { headers: CORS }),
       "/api/projects": () => Response.json(q(`SELECT p.*,g.dirty_file_count,g.stash_count,g.branch_count,g.current_branch FROM projects p LEFT JOIN project_git_state g ON g.project_path=p.path ORDER BY p.total_commits DESC`), { headers: CORS }),
-      "/api/tasks": () => Response.json(q(`SELECT * FROM tasks ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,suite_id`), { headers: CORS }),
+      "/api/tasks": () => Response.json(q(`SELECT * FROM tasks WHERE is_internal=0 ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,suite_id`), { headers: CORS }),
       "/api/commits": () => Response.json(q(`SELECT hash,project_path,date,message,commit_type,commit_scope FROM commits ORDER BY date DESC LIMIT 200`), { headers: CORS }),
-      "/api/hours": () => Response.json(q(`SELECT CAST(((started_at/1000+?1)%86400)/3600 AS INTEGER) as hour,COUNT(*) as n FROM sessions WHERE started_at>0 GROUP BY hour ORDER BY hour`, TZ_OFFSET_SEC), { headers: CORS }),
-      "/api/project-sessions": () => Response.json(q(`SELECT project_path,COUNT(*) as sessions,ROUND(SUM(duration_minutes)) as minutes,SUM(COALESCE(lines_added,0)) as added,SUM(COALESCE(lines_removed,0)) as removed,SUM(COALESCE(cost_usd,0)) as cost,SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp FROM sessions WHERE project_path IS NOT NULL GROUP BY project_path ORDER BY sessions DESC LIMIT 20`), { headers: CORS }),
+      "/api/hours": () => Response.json(q(`SELECT hour,COUNT(*) as n FROM (SELECT CAST(SUBSTR(datetime(MIN(timestamp),'localtime'),12,2) AS INTEGER) as hour FROM conversation_messages WHERE timestamp LIKE '20%' AND type IN ('user','assistant') GROUP BY session_id) GROUP BY hour ORDER BY hour`), { headers: CORS }),
+      "/api/project-sessions": () => Response.json(q(`WITH sess_dur AS (SELECT session_id,MIN((julianday(MAX(timestamp))-julianday(MIN(timestamp)))*1440,240) as dur FROM conversation_messages WHERE timestamp LIKE '20%' AND type IN ('user','assistant') GROUP BY session_id HAVING dur>0), sess_tok AS (SELECT session_id,SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp FROM conversation_messages GROUP BY session_id) SELECT s.project_path,COUNT(DISTINCT s.id) as sessions,ROUND(COALESCE(SUM(sd.dur),0)) as minutes,SUM(COALESCE(s.lines_added,0)) as added,SUM(COALESCE(s.lines_removed,0)) as removed,SUM(COALESCE(s.cost_usd,0)) as cost,COALESCE(SUM(st.inp),0) as inp,COALESCE(SUM(st.outp),0) as outp FROM sessions s LEFT JOIN sess_dur sd ON sd.session_id=s.id LEFT JOIN sess_tok st ON st.session_id=s.id WHERE s.project_path IS NOT NULL GROUP BY s.project_path ORDER BY sessions DESC LIMIT 20`), { headers: CORS }),
       "/api/commit-types": () => Response.json(q(`SELECT commit_type,COUNT(*) as n FROM commits WHERE commit_type IS NOT NULL AND commit_type!='' GROUP BY commit_type ORDER BY n DESC LIMIT 10`), { headers: CORS }),
-      "/api/duration-dist": () => Response.json(q(`SELECT CASE WHEN duration_minutes<1 THEN '<1m' WHEN duration_minutes<5 THEN '1-5m' WHEN duration_minutes<15 THEN '5-15m' WHEN duration_minutes<30 THEN '15-30m' WHEN duration_minutes<60 THEN '30-60m' WHEN duration_minutes<120 THEN '1-2h' WHEN duration_minutes<240 THEN '2-4h' ELSE '4h+' END as bucket,COUNT(*) as n FROM sessions GROUP BY bucket ORDER BY MIN(duration_minutes)`), { headers: CORS }),
+      "/api/duration-dist": () => Response.json(q(`SELECT CASE WHEN dur<1 THEN '<1m' WHEN dur<5 THEN '1-5m' WHEN dur<15 THEN '5-15m' WHEN dur<30 THEN '15-30m' WHEN dur<60 THEN '30-60m' WHEN dur<120 THEN '1-2h' WHEN dur<240 THEN '2-4h' ELSE '4h+' END as bucket,COUNT(*) as n FROM (SELECT (julianday(MAX(timestamp))-julianday(MIN(timestamp)))*1440 as dur FROM conversation_messages WHERE timestamp LIKE '20%' AND type IN ('user','assistant') GROUP BY session_id) GROUP BY bucket ORDER BY MIN(dur)`), { headers: CORS }),
       "/api/branches": () => Response.json(q(`SELECT git_branch,COUNT(*) as n FROM sessions WHERE git_branch IS NOT NULL AND git_branch!='' GROUP BY git_branch ORDER BY n DESC LIMIT 15`), { headers: CORS }),
-      "/api/usage-by-project": () => Response.json(q(`SELECT project_path,SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp,COUNT(*) as sessions FROM sessions WHERE project_path IS NOT NULL GROUP BY project_path ORDER BY (inp+outp) DESC LIMIT 15`), { headers: CORS }),
+      "/api/usage-by-project": () => Response.json(q(`SELECT s.project_path,SUM(COALESCE(cm.input_tokens,0)) as inp,SUM(COALESCE(cm.output_tokens,0)) as outp,COUNT(DISTINCT cm.session_id) as sessions FROM conversation_messages cm JOIN sessions s ON s.id=cm.session_id WHERE s.project_path IS NOT NULL GROUP BY s.project_path ORDER BY (inp+outp) DESC LIMIT 15`), { headers: CORS }),
       "/api/lines-by-day": () => Response.json(q(`SELECT SUBSTR(date,1,10) as d,SUM(CASE WHEN commit_type='feat' THEN 1 ELSE 0 END) as feats,SUM(CASE WHEN commit_type='fix' THEN 1 ELSE 0 END) as fixes,COUNT(*) as total FROM commits GROUP BY d ORDER BY d`), { headers: CORS }),
       "/api/git-state": () => Response.json(q(`SELECT project_path,dirty_file_count,stash_count,branch_count,current_branch FROM project_git_state WHERE dirty_file_count>0 OR stash_count>0 ORDER BY dirty_file_count DESC`), { headers: CORS }),
       "/api/tokens-by-model": () => Response.json(q(`SELECT model,COUNT(*) as msgs,SUM(COALESCE(input_tokens,0)) as inp,SUM(COALESCE(output_tokens,0)) as outp,SUM(has_thinking) as thinking_msgs,ROUND(AVG(CASE WHEN thinking_length>0 THEN thinking_length END)) as avg_think_len,MAX(thinking_length) as max_think_len,SUM(is_error) as errors FROM conversation_messages WHERE model IS NOT NULL AND model!='<synthetic>' GROUP BY model ORDER BY (inp+outp) DESC`), { headers: CORS }),
@@ -228,7 +221,20 @@ export function serveCommand(args: string[]): void {
           FROM (
             SELECT tool_name, LEAD(is_error) OVER (PARTITION BY session_id ORDER BY rowid) as next_is_error
             FROM conversation_messages
-            WHERE tool_name IS NOT NULL OR (is_error = 1 AND type = 'user')
+            WHERE (tool_name IS NOT NULL AND tool_name NOT LIKE 'Skill:%') OR (is_error = 1 AND type = 'user')
+          )
+          WHERE tool_name IS NOT NULL
+          GROUP BY tool_name ORDER BY calls DESC LIMIT 20`);
+        return Response.json(rows, { headers: CORS });
+      },
+      "/api/skill-errors": () => {
+        const rows = q(`SELECT REPLACE(tool_name,'Skill:','') as skill_name, COUNT(*) as calls,
+          SUM(CASE WHEN next_is_error = 1 THEN 1 ELSE 0 END) as errors,
+          ROUND(SUM(CASE WHEN next_is_error = 1 THEN 1 ELSE 0 END)*100.0/COUNT(*),1) as error_pct
+          FROM (
+            SELECT tool_name, LEAD(is_error) OVER (PARTITION BY session_id ORDER BY rowid) as next_is_error
+            FROM conversation_messages
+            WHERE (tool_name IS NOT NULL AND tool_name LIKE 'Skill:%') OR (is_error = 1 AND type = 'user')
           )
           WHERE tool_name IS NOT NULL
           GROUP BY tool_name ORDER BY calls DESC LIMIT 20`);
@@ -237,7 +243,6 @@ export function serveCommand(args: string[]): void {
       "/api/commit-scopes": () => Response.json(q(`SELECT commit_type,commit_scope,COUNT(*) as n FROM commits WHERE commit_scope IS NOT NULL AND commit_scope!='' GROUP BY commit_type,commit_scope ORDER BY n DESC LIMIT 20`), { headers: CORS }),
       "/api/pr-links": () => Response.json(q(`SELECT content,timestamp FROM conversation_messages WHERE raw_type='pr-link' ORDER BY timestamp DESC`), { headers: CORS }),
       "/api/session-summaries": () => Response.json(q(`SELECT id,summary,first_prompt,project_path,duration_minutes,message_count FROM sessions WHERE summary IS NOT NULL AND summary!='' ORDER BY started_at DESC LIMIT 50`), { headers: CORS }),
-      "/api/paste-stats": () => Response.json(q(`SELECT COUNT(*) as total,SUM(has_paste) as with_paste,ROUND(SUM(has_paste)*100.0/COUNT(*),1) as pct FROM history_messages`)[0], { headers: CORS }),
       "/api/project-staleness": () => Response.json(q(`SELECT name,type,path,last_commit_date,last_session_date,total_commits,total_sessions FROM projects ORDER BY COALESCE(last_commit_date,last_session_date,'1970') DESC`), { headers: CORS }),
       "/api/streaks": () => Response.json(computeStreaks(q), { headers: CORS }),
       "/api/billing-blocks": () => {
@@ -340,22 +345,13 @@ export function serveCommand(args: string[]): void {
         return Response.json(rows, { headers: CORS });
       },
       "/api/model-usage-breakdown": () => {
-        return Response.json(q(`SELECT * FROM model_usage ORDER BY input_tokens + output_tokens DESC`), { headers: CORS });
-      },
-      "/api/daily-model-tokens": () => {
-        return Response.json(q(`SELECT * FROM daily_model_tokens ORDER BY date`), { headers: CORS });
+        return Response.json(q(`SELECT model,SUM(COALESCE(input_tokens,0)) as input_tokens,SUM(COALESCE(output_tokens,0)) as output_tokens,SUM(COALESCE(cache_read_tokens,0)) as cache_read_tokens,SUM(COALESCE(cache_creation_tokens,0)) as cache_creation_tokens FROM conversation_messages WHERE model IS NOT NULL GROUP BY model ORDER BY input_tokens+output_tokens DESC`), { headers: CORS });
       },
       "/api/pr-sessions": () => {
         return Response.json(q(`SELECT id, project_path, summary, pr_number, pr_url, pr_repository, slug, started_at, duration_minutes FROM sessions WHERE pr_url IS NOT NULL ORDER BY started_at DESC`), { headers: CORS });
       },
       "/api/session-slugs": () => {
         return Response.json(q(`SELECT id, slug, summary, project_path FROM sessions WHERE slug IS NOT NULL ORDER BY started_at DESC LIMIT 100`), { headers: CORS });
-      },
-      "/api/tool-usage": () => {
-        return Response.json(q(`SELECT * FROM tool_usage ORDER BY usage_count DESC`), { headers: CORS });
-      },
-      "/api/skill-usage": () => {
-        return Response.json(q(`SELECT * FROM skill_usage ORDER BY usage_count DESC`), { headers: CORS });
       },
       "/api/app-meta": () => {
         const rows = q(`SELECT * FROM app_meta`) as { key: string; value: string }[];
@@ -437,7 +433,7 @@ export function serveCommand(args: string[]): void {
         const query = new URL(req.url).searchParams.get("q") || "";
         if (!query) return Response.json([], { headers: CORS });
         try {
-          return Response.json(q(`SELECT hm.timestamp,hm.project_path,hm.display FROM history_fts f JOIN history_messages hm ON hm.id=f.rowid WHERE history_fts MATCH ? ORDER BY hm.timestamp DESC LIMIT 30`, safeFts(query)), { headers: CORS });
+          return Response.json(q(`SELECT cm.timestamp,s.project_path,SUBSTR(cm.content,1,200) as display FROM conversation_fts f JOIN conversation_messages cm ON cm.id=f.rowid LEFT JOIN sessions s ON s.id=cm.session_id WHERE conversation_fts MATCH ? ORDER BY cm.timestamp DESC LIMIT 30`, safeFts(query)), { headers: CORS });
         } catch { return Response.json([], { headers: CORS }); }
       },
       "/api/chat/sessions": (req) => {

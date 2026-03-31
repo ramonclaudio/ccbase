@@ -30,21 +30,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   total_web_search_requests INTEGER
 );
 
-CREATE TABLE IF NOT EXISTS history_messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  session_id TEXT,
-  project_path TEXT,
-  display TEXT,
-  timestamp INTEGER,
-  has_paste INTEGER DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS daily_stats (
-  date TEXT PRIMARY KEY,
-  message_count INTEGER,
-  session_count INTEGER,
-  tool_call_count INTEGER
-);
 
 CREATE TABLE IF NOT EXISTS projects (
   path TEXT PRIMARY KEY,
@@ -69,6 +54,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   blocks TEXT,
   blocked_by TEXT,
   is_internal INTEGER DEFAULT 0,
+  active_form TEXT,
+  team_name TEXT,
+  total_created INTEGER DEFAULT 0,
   PRIMARY KEY (suite_id, id)
 );
 
@@ -92,17 +80,8 @@ CREATE TABLE IF NOT EXISTS commits (
   commit_scope TEXT
 );
 
-CREATE VIRTUAL TABLE IF NOT EXISTS history_fts USING fts5(
-  display,
-  content='history_messages',
-  content_rowid='id'
-);
-
 CREATE INDEX IF NOT EXISTS idx_sessions_project_path ON sessions(project_path);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at);
-CREATE INDEX IF NOT EXISTS idx_history_messages_session_id ON history_messages(session_id);
-CREATE INDEX IF NOT EXISTS idx_history_messages_project_path ON history_messages(project_path);
-CREATE INDEX IF NOT EXISTS idx_history_messages_timestamp ON history_messages(timestamp);
 CREATE TABLE IF NOT EXISTS billing_blocks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   block_start INTEGER UNIQUE,
@@ -166,37 +145,6 @@ CREATE INDEX IF NOT EXISTS idx_conv_session_role ON conversation_messages(sessio
 CREATE INDEX IF NOT EXISTS idx_conv_subtype ON conversation_messages(subtype);
 CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(content);
 
-CREATE TABLE IF NOT EXISTS model_usage (
-  model TEXT PRIMARY KEY,
-  input_tokens INTEGER,
-  output_tokens INTEGER,
-  cache_read_tokens INTEGER,
-  cache_creation_tokens INTEGER,
-  web_search_requests INTEGER,
-  cost_usd REAL,
-  context_window INTEGER,
-  max_output_tokens INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS daily_model_tokens (
-  date TEXT,
-  model TEXT,
-  tokens INTEGER,
-  PRIMARY KEY (date, model)
-);
-CREATE INDEX IF NOT EXISTS idx_dmt_date ON daily_model_tokens(date);
-
-CREATE TABLE IF NOT EXISTS tool_usage (
-  tool TEXT PRIMARY KEY,
-  usage_count INTEGER,
-  last_used_at INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS skill_usage (
-  skill TEXT PRIMARY KEY,
-  usage_count INTEGER,
-  last_used_at INTEGER
-);
 
 CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY,

@@ -3,7 +3,6 @@ import { getDb } from "../db/connection.ts";
 import { createSchema } from "../db/schema.ts";
 import { ingestProjects } from "./projects.ts";
 import { ingestSessionsIndex } from "./sessions-index.ts";
-import { ingestHistory } from "./history.ts";
 import { ingestStats } from "./stats.ts";
 import { ingestTasks } from "./tasks.ts";
 import { ingestRootConfig } from "./root-config.ts";
@@ -14,16 +13,9 @@ const TABLES = [
   "billing_blocks",
   "conversation_fts",
   "conversation_messages",
-  "history_fts",
-  "history_messages",
   "commits",
   "project_git_state",
   "tasks",
-  "daily_stats",
-  "daily_model_tokens",
-  "model_usage",
-  "tool_usage",
-  "skill_usage",
   "app_meta",
   "session_facets",
   "github_repos",
@@ -39,7 +31,6 @@ interface IngestStep {
 const steps: IngestStep[] = [
   { name: "projects", fn: ingestProjects },
   { name: "sessions-index", fn: ingestSessionsIndex },
-  { name: "history", fn: ingestHistory },
   { name: "tasks", fn: ingestTasks },
   { name: "root-config", fn: ingestRootConfig },
   { name: "billing-blocks", fn: ingestBillingBlocks },

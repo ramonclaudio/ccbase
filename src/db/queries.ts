@@ -21,14 +21,6 @@ export interface Session {
   lines_removed: number | null;
 }
 
-interface HistoryMessage {
-  id: number;
-  session_id: string | null;
-  project_path: string | null;
-  display: string | null;
-  timestamp: number | null;
-  has_paste: number;
-}
 
 interface Project {
   path: string;
@@ -72,9 +64,6 @@ interface SessionSummary {
   total_lines_removed: number | null;
 }
 
-interface HistorySearchResult extends HistoryMessage {
-  rank: number;
-}
 
 export function sessionsByDateRange(
   db: Database,
@@ -139,22 +128,6 @@ export function commitsInRange(
 /** Quote a string for FTS5 MATCH: wraps in double quotes, strips internal quotes. */
 export const safeFts = (q: string): string => `"${q.replace(/"/g, "")}"`;
 
-export function searchHistory(
-  db: Database,
-  query: string,
-  limit = 20,
-): HistorySearchResult[] {
-  return db
-    .query(
-      `SELECT hm.*, f.rank
-       FROM history_fts f
-       JOIN history_messages hm ON hm.id = f.rowid
-       WHERE history_fts MATCH ?
-       ORDER BY f.rank
-       LIMIT ?`,
-    )
-    .all(safeFts(query), limit) as HistorySearchResult[];
-}
 
 const ALLOWED_PREFIXES = ["SELECT", "PRAGMA", "EXPLAIN"];
 
