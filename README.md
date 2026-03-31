@@ -1,4 +1,4 @@
-# claude-code-analyzer
+# Claude Pulse
 
 Analytics dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) usage. Parses your local conversation history, git activity, and session data into a searchable SQLite database with a live web dashboard.
 
@@ -25,8 +25,8 @@ All data stays local. Nothing leaves your machine.
 ## Install
 
 ```bash
-git clone https://github.com/ramonclaudio/claude-code-analyzer.git
-cd claude-code-analyzer
+git clone https://github.com/ramonclaudio/claude-pulse.git
+cd claude-pulse
 bun install
 ```
 
@@ -37,10 +37,10 @@ bun install
 bun run build
 
 # Ingest your Claude Code data
-./dist/claude-analyzer ingest
+./dist/claude-pulse ingest
 
 # Start the dashboard
-./dist/claude-analyzer serve
+./dist/claude-pulse serve
 ```
 
 Open `http://localhost:3847` in your browser.
@@ -74,7 +74,7 @@ bun run src/index.ts serve
 By default, the analyzer scans `~/Developer` for git repos (one level deep). Override with:
 
 ```bash
-ANALYZER_DEV_DIR=~/projects ./dist/claude-analyzer ingest
+ANALYZER_DEV_DIR=~/projects ./dist/claude-pulse ingest
 ```
 
 It finds git repos at `$ANALYZER_DEV_DIR/*/` and `$ANALYZER_DEV_DIR/*/*/` (for nested layouts like `~/Developer/work/my-app`).

@@ -143,13 +143,13 @@ function renderDashboard(data: DashboardData): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Claude Code Analyzer</title>
+<title>Claude Pulse</title>
 <style>
 ${DASHBOARD_CSS}
 </style>
 </head>
 <body>
-<h1>Claude Code Analyzer</h1>
+<h1>Claude Pulse</h1>
 <div class="sub">Generated ${today()} &middot; ${data.daily.length} days tracked</div>
 
 <div style="margin-bottom:24px">

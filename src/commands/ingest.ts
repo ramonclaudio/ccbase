@@ -6,14 +6,14 @@ export async function ingestCommand(args: string[]): Promise<void> {
   const removeCron = args.includes("--no-cron");
 
   if (removeCron) {
-    await Bun.cron.remove("claude-analyzer-ingest");
+    await Bun.cron.remove("claude-pulse-ingest");
     console.log("Removed auto-ingest cron job.");
     return;
   }
 
   if (cron) {
     const schedule = args.find(a => /^[\d*\/,-]+\s/.test(a)) || "7 * * * *";
-    await Bun.cron(import.meta.path, schedule, "claude-analyzer-ingest");
+    await Bun.cron(import.meta.path, schedule, "claude-pulse-ingest");
     const next = Bun.cron.parse(schedule);
     console.log(`Auto-ingest scheduled: ${schedule}`);
     console.log(`Next run: ${next?.toLocaleString() || "unknown"}`);

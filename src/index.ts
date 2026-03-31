@@ -21,7 +21,7 @@ declare const __BUILD_TIME__: number;
 function printHelp() {
   const version = typeof __VERSION__ !== "undefined" ? __VERSION__ : "dev";
   const built = typeof __BUILD_TIME__ !== "undefined" ? new Date(__BUILD_TIME__ * 1000).toLocaleDateString() : "";
-  console.log(`claude-analyzer ${version}${built ? ` (built ${built})` : ""} - Task tracker powered by Claude Code session data
+  console.log(`claude-pulse ${version}${built ? ` (built ${built})` : ""} - Task tracker powered by Claude Code session data
 
 Commands:
   log [--yesterday|--week|DATE]   What did I do? Sessions by date
