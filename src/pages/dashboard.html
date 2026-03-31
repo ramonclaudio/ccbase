@@ -12,13 +12,11 @@ code,.mono{font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,Monaco,Consola
 .stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
 .stat .n{font-size:28px;font-weight:700;color:var(--cream);font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,monospace;line-height:1.1}
 .stat .l{font-size:10px;color:var(--dim);text-transform:none;letter-spacing:0;margin-top:2px}
-#widgets{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-flow:dense;gap:12px;margin-bottom:12px;align-items:start}
-.c{background:var(--card);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:16px 18px;overflow:hidden;transition:background .15s ease;grid-column:span 6}
+#widgets{columns:3;column-gap:12px;margin-bottom:12px}
+.c{background:var(--card);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:16px 18px;overflow:hidden;transition:background .15s ease;break-inside:avoid;margin-bottom:12px}
 html[data-theme="light"] .c{border-color:rgba(0,0,0,.04)}
 .c:hover{background:var(--charcoal)}
-.c.wide{grid-column:span 12}
-.c.third{grid-column:span 4}
-.c.quarter{grid-column:span 3}
+.c.wide{column-span:all}
 .c h2{font-size:13px;font-weight:600;color:var(--cream);text-transform:none;letter-spacing:0;margin-bottom:10px}
 .w-hidden{display:none!important}
 canvas{width:100%!important;display:block;cursor:crosshair}
@@ -96,7 +94,8 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .settings-panel .actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
 .settings-panel .actions button{background:var(--charcoal);color:var(--text);border:0;border-radius:10px;padding:8px 18px;cursor:pointer;font-size:12px;transition:background .12s ease}
 .settings-panel .actions button:hover{background:var(--accent);color:#fff}
-@media(max-width:900px){#widgets{grid-template-columns:1fr}.c,.c.wide,.c.third,.c.quarter{grid-column:span 1}}
+@media(max-width:1100px){#widgets{columns:2}}
+@media(max-width:700px){#widgets{columns:1}}
 </style></head><body>
 <h1>Claude Pulse</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History &rarr;</a> <button onclick="toggleTheme()" style="margin-left:8px;background:var(--charcoal);border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">&#9788;</button> <button onclick="openSettings()" style="margin-left:4px;background:var(--charcoal);border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--dim)" title="Customize widgets">&#9881;</button>
 <div class="sub" id="sub">loading...</div>
@@ -121,15 +120,15 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c" data-w="recent_commits"><h2>Recent Commits</h2><div class="sc" id="commits"></div></div>
 <div class="c" data-w="commits_day"><h2>Commits per Day</h2><canvas id="c_cpd" height="150"></canvas></div>
 <!-- 2. Savings: what it cost me -->
-<div class="c third" data-w="cache_efficiency"><h2>Cache Efficiency</h2><div id="p_cache"></div></div>
-<div class="c third" data-w="billing"><h2>Billing Blocks (5hr)</h2><div id="p_billing"></div></div>
-<div class="c third" data-w="tokens_model"><h2>Tokens by Model</h2><div id="p_models"></div></div>
+<div class="c" data-w="cache_efficiency"><h2>Cache Efficiency</h2><div id="p_cache"></div></div>
+<div class="c" data-w="billing"><h2>Billing Blocks (5hr)</h2><div id="p_billing"></div></div>
+<div class="c" data-w="tokens_model"><h2>Tokens by Model</h2><div id="p_models"></div></div>
 <!-- 3. Status: what's in flight -->
-<div class="c third" data-w="tasks"><h2>Tasks</h2>
+<div class="c" data-w="tasks"><h2>Tasks</h2>
 <div class="tabs"><span class="tab on" data-f="w">In Progress</span><span class="tab" data-f="p">Pending</span><span class="tab" data-f="d">Done</span></div>
 <div class="sc" id="tasks"></div></div>
-<div class="c third" data-w="wip"><h2>Work in Progress</h2><div class="sc" id="wip"></div></div>
-<div class="c third" data-w="recent_sessions"><h2>Recent Sessions</h2><div class="sc" id="sess"></div></div>
+<div class="c" data-w="wip"><h2>Work in Progress</h2><div class="sc" id="wip"></div></div>
+<div class="c" data-w="recent_sessions"><h2>Recent Sessions</h2><div class="sc" id="sess"></div></div>
 <!-- 4. Activity patterns -->
 <div class="c" data-w="sessions_day"><h2>Sessions per Day</h2><canvas id="c_daily" height="130"></canvas></div>
 <div class="c" data-w="messages_day"><h2>Messages per Day</h2><canvas id="c_msgs" height="130"></canvas></div>
@@ -146,13 +145,13 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c" data-w="tools_day"><h2>Tool Calls per Day</h2><canvas id="c_tools" height="120"></canvas></div>
 <div class="c" data-w="lifetime_skills"><h2>Skill Usage + Error Rates</h2><div class="sc" id="p_ltskills"></div></div>
 <!-- 7. Performance & infrastructure -->
-<div class="c quarter" data-w="turn_latency"><h2>Turn Latency</h2><div id="p_turnlat"></div></div>
-<div class="c quarter" data-w="web_usage"><h2>Web Search</h2><div id="p_web"></div></div>
+<div class="c" data-w="turn_latency"><h2>Turn Latency</h2><div id="p_turnlat"></div></div>
+<div class="c" data-w="web_usage"><h2>Web Search</h2><div id="p_web"></div></div>
 <div class="c" data-w="mcp_usage"><h2>MCP Servers</h2><div class="sc" id="p_mcp"></div></div>
 <!-- 8. Insights -->
-<div class="c third" data-w="facet_outcomes"><h2>Session Outcomes</h2><canvas id="c_outcomes" height="150"></canvas></div>
-<div class="c third" data-w="facet_helpfulness"><h2>Claude Helpfulness</h2><canvas id="c_helpful" height="150"></canvas></div>
-<div class="c third" data-w="facet_list"><h2>Session Insights</h2><div class="sc" id="p_facets"></div></div>
+<div class="c" data-w="facet_outcomes"><h2>Session Outcomes</h2><canvas id="c_outcomes" height="150"></canvas></div>
+<div class="c" data-w="facet_helpfulness"><h2>Claude Helpfulness</h2><canvas id="c_helpful" height="150"></canvas></div>
+<div class="c" data-w="facet_list"><h2>Session Insights</h2><div class="sc" id="p_facets"></div></div>
 <div class="c" data-w="commit_types"><h2>Commit Types</h2><canvas id="c_types" height="150"></canvas></div>
 </div>
 
