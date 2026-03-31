@@ -8,21 +8,22 @@ html[data-theme="light"]{--bg:#faf9f5;--card:#ffffff;--border:#e8e6dc;--text:#14
 body{font-family:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);padding:16px 20px;max-width:1440px;margin:0 auto;font-size:13px}
 h1{font-size:18px;font-weight:600;color:var(--cream);display:inline}
 code,.mono{font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-.sub{color:var(--dim);font-size:12px;margin:4px 0 14px}
-.stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
-.stat .n{font-size:28px;font-weight:700;color:var(--cream);font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,monospace;line-height:1.1}
-.stat .l{font-size:10px;color:var(--dim);text-transform:none;letter-spacing:0;margin-top:2px}
-.section{font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.5px;text-transform:uppercase;margin:20px 0 8px;padding-left:2px}
-.section:first-child{margin-top:8px}
+.sub{color:var(--dim);font-size:12px;margin:2px 0 10px}
+.stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.stat .n{font-size:22px;font-weight:600;color:var(--cream);font-family:"Fira Code","SF Mono",SFMono-Regular,Menlo,monospace;line-height:1.1}
+.stat .l{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.section{font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.3px;margin:24px 0 10px;padding-left:2px;display:flex;align-items:center;gap:12px}
+.section::after{content:'';flex:1;height:1px;background:var(--border);opacity:.5}
+.section:first-child{margin-top:4px}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;align-items:start}
 .row.two{grid-template-columns:repeat(2,1fr)}
-.c{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px 18px;overflow:hidden;transition:all .15s ease}
-html[data-theme="light"] .c{border-color:rgba(0,0,0,.06)}
-.c:hover{background:var(--charcoal);border-color:rgba(255,255,255,.1)}
-html[data-theme="light"] .c:hover{border-color:rgba(0,0,0,.1)}
+.c{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px 18px;overflow:hidden;transition:all .15s ease;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+html[data-theme="light"] .c{border-color:rgba(0,0,0,.05);box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.c:hover{background:var(--charcoal);border-color:rgba(255,255,255,.12);box-shadow:0 4px 16px rgba(0,0,0,.12)}
+html[data-theme="light"] .c:hover{border-color:rgba(0,0,0,.1);box-shadow:0 4px 16px rgba(0,0,0,.06)}
 .c.span2{grid-column:span 2}
 .c.span3{grid-column:span 3}
-.c h2{font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.3px;margin-bottom:10px}
+.c h2{font-size:13px;font-weight:600;color:var(--cream);text-transform:none;letter-spacing:0;margin-bottom:10px}
 .accent{color:var(--accent)}
 .green{color:var(--green)}
 .w-hidden{display:none!important}
@@ -33,12 +34,12 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .br:active{transform:scale(.98)}
 .br .nm{width:110px;text-align:right;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
 .hm .d{cursor:pointer;transition:transform .1s ease}.hm .d:hover{transform:scale(1.4)}
-.filter{margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.filter input{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;width:120px;transition:border-color .15s ease}
+.filter{margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filter input{background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:11px;outline:none;width:110px;transition:border-color .15s ease}
 .filter input:focus{border-color:var(--blue)}
 .chip{font-size:10px;padding:3px 10px;border-radius:12px;background:var(--blue);color:#fff;cursor:pointer;display:none;align-items:center;gap:4px}
 .chip.on{display:inline-flex}
-.filter button{background:var(--charcoal);color:var(--text);border:0;border-radius:10px;padding:7px 14px;cursor:pointer;font-size:11px;transition:background .12s ease}
+.filter button{background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:10px;transition:all .12s ease}
 .filter button:hover{background:var(--accent);color:#fff}
 .dd{background:var(--card);border:none;border-left:3px solid var(--blue);border-radius:12px;padding:14px 18px;margin-bottom:12px;display:none}
 .dd.on{display:block}
@@ -103,7 +104,7 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 .settings-panel .actions button:hover{background:var(--accent);color:#fff}
 @media(max-width:900px){.row,.row.two{grid-template-columns:1fr}.c.span2,.c.span3{grid-column:span 1}}
 </style></head><body>
-<h1>Claude Pulse</h1> <a href="/chat" style="color:var(--blue);font-size:12px;margin-left:12px;text-decoration:none">Chat History &rarr;</a> <button onclick="toggleTheme()" style="margin-left:8px;background:var(--charcoal);border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">&#9788;</button> <button onclick="openSettings()" style="margin-left:4px;background:var(--charcoal);border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--dim)" title="Customize widgets">&#9881;</button>
+<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:2px"><h1 id="greeting">Claude Pulse</h1><a href="/chat" style="color:var(--blue);font-size:12px;text-decoration:none">Chat History &rarr;</a><div style="margin-left:auto;display:flex;gap:4px"><button onclick="toggleTheme()" style="background:var(--charcoal);border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--dim)" id="themeBtn">&#9788;</button><button onclick="openSettings()" style="background:var(--charcoal);border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--dim)" title="Customize widgets">&#9881;</button></div></div>
 <div class="sub" id="sub">loading...</div>
 <div data-w="stats_bar"><div class="stats" id="stats"></div>
 <div class="stats" id="stats2" style="display:none"></div></div>
@@ -354,6 +355,11 @@ async function load(){
 
   const tm={};(stats.tasks||[]).forEach(t=>{tm[t.status]=t.n});
   $("sub").textContent=stats.today+" \xb7 "+daily.length+" days \xb7 "+tok(stats.totalTokens?.n)+" tokens \xb7 "+stats.totalConvLines.n.toLocaleString()+" conversation lines";
+
+  // Greeting
+  const hr=new Date().getHours();
+  const greet=hr<12?"Good morning":hr<17?"Good afternoon":"Good evening";
+  $("greeting").textContent=greet;
 
   // Subtitle with time and streaks
   const totalMin=stats.totalMinutes?.n||0;
