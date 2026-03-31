@@ -118,6 +118,8 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="dd" id="dd"><h2 id="ddTitle"></h2><div id="ddSub" style="font-size:11px;color:var(--dim);margin-bottom:6px"></div><div class="sc" id="ddList"></div></div>
 
 <div id="widgets">
+<!-- Commits graph first -->
+<div class="c wide" data-w="commits_day"><h2>Commits per Day</h2><canvas id="c_cpd" height="150"></canvas></div>
 <!-- Activity -->
 <div class="c wide" data-w="sessions_day"><h2>Sessions per Day</h2><canvas id="c_daily" height="130"></canvas></div>
 <div class="c wide" data-w="messages_day"><h2>Messages per Day</h2><canvas id="c_msgs" height="130"></canvas></div>
@@ -136,7 +138,6 @@ canvas{width:100%!important;display:block;cursor:crosshair}
 <div class="c" data-w="recent_sessions"><h2>Recent Sessions</h2><div class="sc" id="sess"></div></div>
 <!-- Commits -->
 <div class="c" data-w="recent_commits"><h2>Recent Commits</h2><div class="sc" id="commits"></div></div>
-<div class="c" data-w="commits_day"><h2>Commits per Day</h2><canvas id="c_cpd" height="150"></canvas></div>
 <div class="c" data-w="commit_types"><h2>Commit Types</h2><canvas id="c_types" height="150"></canvas></div>
 <!-- Cost & models -->
 <div class="c" data-w="billing"><h2>Billing Blocks (5hr)</h2><div id="p_billing"></div></div>
