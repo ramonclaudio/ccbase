@@ -32,6 +32,7 @@ Commands:
   sql "SELECT ..."                Raw SQL query
   serve [port]                     Live dashboard on localhost
   export [path]                   Generate static HTML dashboard
+  mv <old> <new> [--dry-run]     Rewrite paths after moving a project
   ingest [--force]                Parse Claude Code data into database
   ingest --cron [schedule]        Schedule auto-ingest (default: hourly)
   ingest --no-cron                Remove auto-ingest schedule
@@ -72,6 +73,9 @@ async function main() {
     case "export":
       await ensureDb();
       await (await import("./commands/export-html.ts")).exportHtmlCommand(args);
+      break;
+    case "mv":
+      await (await import("./commands/mv.ts")).mvCommand(args);
       break;
     case "ingest":
       (await import("./commands/ingest.ts")).ingestCommand(args);

@@ -67,6 +67,10 @@ export function decodeProjectPath(encoded: string): string {
   return path;
 }
 
+export function encodeProjectPath(absPath: string): string {
+  return absPath.replace(/\./g, "-").replace(/\//g, "-");
+}
+
 /** Last component of a filesystem path. */
 export function projectName(path: string): string {
   return path.split("/").pop() || path;
