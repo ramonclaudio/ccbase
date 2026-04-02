@@ -61,9 +61,27 @@ bun run src/index.ts sql "SELECT ..." # Raw SQL (read-only)
 
 bun run src/index.ts export [path]    # Static HTML snapshot
 bun run src/index.ts ingest --force   # Drop and re-ingest from scratch
+
+# Move/rename a project
+bun run src/index.ts mv ~/old/path ~/new/path --dry-run  # Preview
+bun run src/index.ts mv ~/old/path ~/new/path            # Apply
 ```
 
 `ingest --force` wipes the local database. Your `~/.claude/` data is never modified.
+
+## Move / Rename Projects
+
+Claude Code stores absolute paths in `~/.claude/`. Move a project and those refs go stale. `ccbase mv` fixes them.
+
+```bash
+mv ~/Developer/private/my-app ~/Developer/public/my-app
+ccbase mv ~/Developer/private/my-app ~/Developer/public/my-app --dry-run
+ccbase mv ~/Developer/private/my-app ~/Developer/public/my-app
+```
+
+Rewrites paths in JSONL session files (including subagents), `sessions-index.json`, file history, paste cache, plans, backups, debug logs, `~/.claude.json`, and all database tables. Renames the dash-encoded project directory in `~/.claude/projects/`.
+
+Replaces both `/Users/you/...` and `~/...` variants. Won't touch sibling projects (`app` won't match `app-v2`). Run `--dry-run` first.
 
 ## What It Tracks
 
@@ -218,7 +236,7 @@ Zero runtime dependencies. Bun + SQLite all the way down.
 
 ## Data Privacy
 
-Read-only against `~/.claude/`. Never modifies your Claude Code data. The SQLite database and exports stay in the project's `data/` directory. No network requests except `localhost`.
+Read-only against `~/.claude/` except `mv`, which rewrites path references after you move a project. Back up `~/.claude/` before running `mv`. Database and exports stay in `data/`. No network requests except `localhost`.
 
 ## License
 

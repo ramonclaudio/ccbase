@@ -1,9 +1,13 @@
 node_modules/
 dist/
-data/ccbase.db
-data/ccbase.db-wal
-data/ccbase.db-shm
-data/ccbase.db-journal
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.db-journal
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
 data/.ingest-state.json
 data/*.html
 *.tsbuildinfo
