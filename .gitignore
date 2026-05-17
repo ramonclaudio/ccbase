@@ -10,6 +10,7 @@ data/*.db-journal
 *.db-journal
 data/.ingest-state.json
 data/*.html
+data/backups/
 *.tsbuildinfo
 .env*
 PROMPT.md
