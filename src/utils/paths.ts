@@ -2,17 +2,30 @@ import { existsSync } from "node:fs";
 import { Glob } from "bun";
 
 const HOME = Bun.env.HOME!;
-export const CLAUDE_HOME = HOME + "/.claude";
+export const CLAUDE_HOME = (Bun.env.CLAUDE_CONFIG_DIR || HOME + "/.claude").replace(/\/+$/, "");
 export const CLAUDE_CONFIG = HOME + "/.claude.json";
+export const CLAUDE_CONFIG_BACKUP = HOME + "/.claude.json.backup";
 export const PROJECTS_DIR = CLAUDE_HOME + "/projects";
 export const STATS_FILE = CLAUDE_HOME + "/stats-cache.json";
 export const TASKS_DIR = CLAUDE_HOME + "/tasks";
 export const DEVELOPER_DIR = Bun.env.CCBASE_DEV_DIR || HOME + "/Developer";
 export const FACETS_DIR = CLAUDE_HOME + "/usage-data/facets";
 
+export const MCP_CACHE_DIR = (() => {
+  if (process.platform === "darwin") return HOME + "/Library/Caches/claude-cli-nodejs";
+  if (process.platform === "win32") {
+    const localAppData = Bun.env.LOCALAPPDATA || HOME + "\\AppData\\Local";
+    return localAppData + "\\claude-cli-nodejs\\Cache";
+  }
+  return (Bun.env.XDG_CACHE_HOME || HOME + "/.cache") + "/claude-cli-nodejs";
+})();
+
 /** Project root data directory (adjacent to src/) */
 export const DATA_DIR = import.meta.dir.split("/").slice(0, -2).join("/") + "/data";
 export const DB_PATH = DATA_DIR + "/ccbase.db";
+
+/** Archive location for source physical dirs after `ccbase mv --apply`. */
+export const BACKUP_DIR = (Bun.env.CCBASE_BACKUP_DIR || DATA_DIR + "/backups").replace(/\/+$/, "");
 
 /**
  * Decode a dash-encoded project path back to its filesystem path.
